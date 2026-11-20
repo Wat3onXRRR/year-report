@@ -1028,19 +1028,6 @@
     list.forEach(function (p) { if (!p.time) p.time = new Date(thisYear, 0, 1); });
     var cur = list.filter(function (p) { return p.time.getFullYear() === thisYear; });
     if (cur.length) list = cur;
-    var skipped = 0, raw = list.length;
-    list = list.filter(function (a) {
-      if (junkReason(a)) { skipped++; return false; }
-      return true;
-    });
-    S.skipped = skipped;
-    S.rawCount = raw;
-    if (!list.length) {
-      loading.classList.remove('on');
-      showModal('没有能用的照片', '<p>这批里几乎都是截图和文档，没有能用的照片。换一批试试。</p>', '好');
-      return;
-    }
-
     list.sort(function (a, b) { return a.time - b.time; });
     S.photos = list;
 
@@ -1918,7 +1905,6 @@
     });
     s7.appendChild(sum);
     var srcLine = '依据是时间、颜色和月份分布。';
-    if (S.skipped) srcLine += '<br>另外筛掉了 ' + S.skipped + ' 张截图和文档。';
     s7.appendChild(el('p', 'foot', srcLine));
     tint(s7, bgH, 46, 16);
     bgArt(s7, 'ringsvg');
