@@ -698,7 +698,7 @@
   </div>
 </div>
 
-<input type="file" id="file" accept="image/*" multiple hidden>
+<input type="file" id="file" accept="image/*" multiple style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
 
 <script src="lib/tf.min.js"></script>
 <script>
@@ -1563,16 +1563,16 @@
       var y = S.year;
       s1.appendChild(el('h1', 'year num', y));
       s1.appendChild(el('p', 'lead', '你把哪些瞬间留下了'));
-      var btn = el('button', 'pick', '换一批');
-      btn.onclick = function () { fileInput.click(); };
+      var btn = el('label', 'pick', '换一批');
+      btn.htmlFor = 'file';
       s1.appendChild(btn);
       s1.appendChild(el('p', 'hint', '往下滑。'));
     } else {
       s1.appendChild(el('h1', 'year num', new Date().getFullYear()));
       s1.appendChild(el('p', 'lead',
         '你把哪些瞬间<br>留下了'));
-      var btn2 = el('button', 'pick', '从相册选');
-      btn2.onclick = function () { fileInput.click(); };
+      var btn2 = el('label', 'pick', '从相册选');
+      btn2.htmlFor = 'file';
       s1.appendChild(btn2);
       var btn3 = el('button', 'pick ghost', '看个示例');
       btn3.onclick = function () { loadDemo(); };
