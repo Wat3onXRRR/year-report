@@ -699,6 +699,7 @@
 </div>
 
 <input type="file" id="file" accept="image/*" multiple style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
+<input type="file" id="dirfile" webkitdirectory multiple style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
 
 <script src="lib/tf.min.js"></script>
 <script>
@@ -1574,10 +1575,14 @@
       var btn2 = el('label', 'pick', '从相册选');
       btn2.htmlFor = 'file';
       s1.appendChild(btn2);
+      var btnDir = el('label', 'pick ghost', '从文件夹选');
+      btnDir.htmlFor = 'dirfile';
+      if (!('webkitdirectory' in document.createElement('input'))) btnDir.style.display = 'none';
+      s1.appendChild(btnDir);
       var btn3 = el('button', 'pick ghost', '看个示例');
       btn3.onclick = function () { loadDemo(); };
       s1.appendChild(btn3);
-      s1.appendChild(el('p', 'hint', '选多少张都行，照片只在本地算。'));
+      s1.appendChild(el('p', 'hint', '从文件夹选能一次读进整个相册，照片只在本地算。'));
     }
     bgArt(s1, 'window');
     return s1;
@@ -3504,6 +3509,15 @@
   fileInput.addEventListener('change', function () {
     if (fileInput.files && fileInput.files.length) handleFiles(fileInput.files);
     fileInput.value = '';
+  });
+  var dirInput = document.getElementById('dirfile');
+  dirInput.addEventListener('change', function () {
+    var imgs = Array.prototype.slice.call(dirInput.files || []).filter(function (f) {
+      return /^image\//.test(f.type);
+    });
+    if (imgs.length) handleFiles(imgs);
+    else alert('这个文件夹里没找到图片，试试「相机」或 DCIM 里的文件夹。');
+    dirInput.value = '';
   });
 
   // 桌面拖拽
