@@ -665,7 +665,7 @@
 
 <main id="deck"></main>
 
-<div id="ver" style="position:fixed;left:10px;bottom:10px;z-index:99999;font-size:11px;font-family:ui-monospace,Consolas,monospace;color:#fff;mix-blend-mode:difference;pointer-events:none;letter-spacing:.5px">v2026.11.20.1805</div>
+<div id="ver" style="position:fixed;left:10px;bottom:10px;z-index:99999;font-size:11px;font-family:ui-monospace,Consolas,monospace;color:#fff;mix-blend-mode:difference;pointer-events:none;letter-spacing:.5px">v2026.11.20.1812</div>
 <div id="redo" style="position:fixed;left:10px;bottom:30px;z-index:99999;font-size:12px;font-family:ui-monospace,Consolas,monospace;color:#fff;mix-blend-mode:difference;cursor:pointer;display:none;letter-spacing:.5px;pointer-events:auto">重新选照片</div>
 
 <div id="loading">
@@ -1073,15 +1073,17 @@
         bar.style.width = Math.round(done / list.length * 100) + '%';
         loadTxt.textContent = '正在看你的照片 ' + done + ' / ' + list.length;
         if (a) {
-          out.push(a);
           var isThisYear = !a.time || a.time.getFullYear() === thisYear;
-          if (isThisYear && thumbs) {
-            while (thumbs.children.length >= 100) thumbs.removeChild(thumbs.firstChild);
-            var ti = document.createElement('img');
-            ti.src = a.url;
-            thumbs.appendChild(ti);
-          } else if (!isThisYear) {
+          if (!isThisYear) {
             skippedYear++;
+          } else {
+            out.push(a);
+            if (thumbs) {
+              while (thumbs.children.length >= 100) thumbs.removeChild(thumbs.firstChild);
+              var ti = document.createElement('img');
+              ti.src = a.url;
+              thumbs.appendChild(ti);
+            }
           }
         }
         if (done >= list.length) {
@@ -1119,14 +1121,9 @@
 
     var thisYear = new Date().getFullYear();
     list.forEach(function (p) { if (!p.time) p.time = new Date(thisYear, 0, 1); });
-    var cur = list.filter(function (p) { return p.time.getFullYear() === thisYear; });
-    if (cur.length) list = cur;
     list.sort(function (a, b) { return a.time - b.time; });
     S.photos = list;
-
-    var yc = {};
-    list.forEach(function (p) { yc[p.time.getFullYear()] = (yc[p.time.getFullYear()] || 0) + 1; });
-    S.year = +Object.keys(yc).sort(function (a, b) { return yc[b] - yc[a]; })[0];
+    S.year = thisYear;
 
     var total = 0, L = 0, Sa = 0, hb = new Array(12).fill(0);
     var months = new Array(12).fill(0), hours = new Array(24).fill(0);
