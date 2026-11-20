@@ -665,7 +665,8 @@
 
 <main id="deck"></main>
 
-<div id="ver" style="position:fixed;left:10px;bottom:10px;z-index:99999;font-size:11px;font-family:ui-monospace,Consolas,monospace;color:#fff;mix-blend-mode:difference;pointer-events:none;letter-spacing:.5px">v2026.11.20.1758</div>
+<div id="ver" style="position:fixed;left:10px;bottom:10px;z-index:99999;font-size:11px;font-family:ui-monospace,Consolas,monospace;color:#fff;mix-blend-mode:difference;pointer-events:none;letter-spacing:.5px">v2026.11.20.1805</div>
+<div id="redo" style="position:fixed;left:10px;bottom:30px;z-index:99999;font-size:12px;font-family:ui-monospace,Consolas,monospace;color:#fff;mix-blend-mode:difference;cursor:pointer;display:none;letter-spacing:.5px;pointer-events:auto">重新选照片</div>
 
 <div id="loading">
   <div class="bar"><i></i></div>
@@ -957,6 +958,66 @@
     });
   }
 
+  /* ---- 本地缓存：刷新/重开不用重新读照片 ---- */
+  var IDB = null;
+  function idbOpen() {
+    return new Promise(function (res, rej) {
+      if (IDB) return res(IDB);
+      if (!('indexedDB' in window)) return rej('no idb');
+      var req = indexedDB.open('year-cache', 1);
+      req.onupgradeneeded = function (e) {
+        var db = e.target.result;
+        if (!db.objectStoreNames.contains('photos')) db.createObjectStore('photos', { keyPath: 'key' });
+      };
+      req.onsuccess = function (e) { IDB = e.target.result; res(IDB); };
+      req.onerror = function (e) { rej(e); };
+    });
+  }
+  function idbPut(key, val) {
+    return idbOpen().then(function (db) {
+      return new Promise(function (res) {
+        try {
+          var tx = db.transaction('photos', 'readwrite');
+          tx.objectStore('photos').put({ key: key, v: val });
+          tx.oncomplete = res; tx.onerror = res;
+        } catch (e) { res(); }
+      });
+    }).catch(function () {});
+  }
+  function idbGetAll() {
+    return idbOpen().then(function (db) {
+      return new Promise(function (res) {
+        try {
+          var tx = db.transaction('photos', 'readonly');
+          var req = tx.objectStore('photos').getAll();
+          req.onsuccess = function () { res(req.result || []); };
+          req.onerror = function () { res([]); };
+        } catch (e) { res([]); }
+      });
+    }).catch(function () { return []; });
+  }
+  function idbClear() {
+    return idbOpen().then(function (db) {
+      return new Promise(function (res) {
+        try {
+          var tx = db.transaction('photos', 'readwrite');
+          tx.objectStore('photos').clear();
+          tx.oncomplete = res; tx.onerror = res;
+        } catch (e) { res(); }
+      });
+    }).catch(function () {});
+  }
+  function fkey(f) { return (f.name || '') + '|' + (f.size || 0) + '|' + (f.lastModified || 0); }
+  function thumbDataURL(im) {
+    try {
+      var c = document.createElement('canvas');
+      c.width = 256; c.height = 256;
+      var ctx = c.getContext('2d');
+      ctx.drawImage(im, 0, 0, 256, 256);
+      return c.toDataURL('image/jpeg', 0.72);
+    } catch (e) { return null; }
+  }
+
   function handleFiles(files) {
     var list = Array.prototype.slice.call(files).filter(function (f) {
       return /^image\//.test(f.type) && !/heic|heif/i.test(f.type);
@@ -971,18 +1032,13 @@
     bar.style.width = '0%';
 
     var out = [];
-    var i = 0;
+    var done = 0;
+    var cursor = 0;
     var thisYear = new Date().getFullYear();
     var skippedYear = 0;
 
-    function next() {
-      if (i >= list.length) { finish(out, skippedYear); return; }
-      var f = list[i];
-      i++;
-      bar.style.width = Math.round(i / list.length * 100) + '%';
-      loadTxt.textContent = '正在看你的照片 ' + i + ' / ' + list.length;
-
-      readHead(f, 131072).then(function (buf) {
+    function processOne(f, idx) {
+      return readHead(f, 131072).then(function (buf) {
         var t = buf.byteLength ? exifTime(buf) : null;
         if (!t) t = nameTime(f.name);
         var sz = parseSize(buf, f.type) || { w: 0, h: 0 };
@@ -995,15 +1051,50 @@
           a.time = t;
           a.iw = sz.w || im.naturalWidth || im.width || 0;
           a.ih = sz.h || im.naturalHeight || im.height || 0;
+          a.idx = idx;
+          idbPut(fkey(f), {
+            time: a.time ? a.time.getTime() : null,
+            r: a.r, g: a.g, b: a.b, h: a.h,
+            light: a.light, sat: a.sat, edge: a.edge, hb: a.hb, n: a.n,
+            skin: a.skin, center: a.center, white: a.white, sym: a.sym,
+            iw: a.iw, ih: a.ih, size: f.size || 0,
+            thumb: thumbDataURL(im)
+          });
           return a;
         });
-      }).then(function (a) {
-        if (a) out.push(a);
-        if (a && thumbs) { while (thumbs.children.length >= 100) thumbs.removeChild(thumbs.firstChild); var ti = document.createElement('img'); ti.src = a.url; thumbs.appendChild(ti); }
-        setTimeout(next, 0);
-      }).catch(function () { setTimeout(next, 0); });
+      }).catch(function () { return null; });
     }
-    next();
+
+    function worker() {
+      var idx = cursor++;
+      if (idx >= list.length) return;
+      processOne(list[idx], idx).then(function (a) {
+        done++;
+        bar.style.width = Math.round(done / list.length * 100) + '%';
+        loadTxt.textContent = '正在看你的照片 ' + done + ' / ' + list.length;
+        if (a) {
+          out.push(a);
+          var isThisYear = !a.time || a.time.getFullYear() === thisYear;
+          if (isThisYear && thumbs) {
+            while (thumbs.children.length >= 100) thumbs.removeChild(thumbs.firstChild);
+            var ti = document.createElement('img');
+            ti.src = a.url;
+            thumbs.appendChild(ti);
+          } else if (!isThisYear) {
+            skippedYear++;
+          }
+        }
+        if (done >= list.length) {
+          out.sort(function (x, y) { return x.idx - y.idx; });
+          finish(out, skippedYear);
+        } else {
+          worker();
+        }
+      });
+    }
+
+    var CONC = Math.min(3, list.length);
+    for (var k = 0; k < CONC; k++) worker();
   }
 
   /* 把不像「拍下来记住的事」的图挑出去：截图、长图、文档、二维码、票据 */
@@ -1192,6 +1283,8 @@
 
     buildTags();
     loading.classList.remove('on');
+    var _redo = document.getElementById('redo');
+    if (_redo) _redo.style.display = 'block';
     render();
     if (!SEM_DONE) setTimeout(runSemantic, 900);
   }
@@ -1754,8 +1847,29 @@
 
   function boot() {
     deck.innerHTML = '';
-    deck.appendChild(coverEl(false));
-    initMotion();
+    var redo = document.getElementById('redo');
+    if (redo) { redo.style.display = 'none'; redo.onclick = function () { idbClear().then(function () { location.reload(); }); }; }
+    idbGetAll().then(function (rows) {
+      if (rows && rows.length) {
+        var list = rows.map(function (r) {
+          var v = r.v || {};
+          return {
+            time: v.time ? new Date(v.time) : null,
+            r: v.r, g: v.g, b: v.b, h: v.h,
+            light: v.light, sat: v.sat, edge: v.edge, hb: v.hb, n: v.n,
+            skin: v.skin, center: v.center, white: v.white, sym: v.sym,
+            iw: v.iw, ih: v.ih, url: v.thumb || '', file: { size: v.size || 0 }, kind: null
+          };
+        });
+        finish(list, 0);
+      } else {
+        deck.appendChild(coverEl(false));
+        initMotion();
+      }
+    }).catch(function () {
+      deck.appendChild(coverEl(false));
+      initMotion();
+    });
   }
 
 
