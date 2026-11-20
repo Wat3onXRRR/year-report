@@ -983,6 +983,7 @@
       readHead(f, 131072).then(function (buf) {
         var t = buf.byteLength ? exifTime(buf) : null;
         if (!t) t = nameTime(f.name);
+        if (t && t.getFullYear() !== thisYear) { skippedYear++; setTimeout(next, 0); return; }
         var sz = parseSize(buf, f.type) || { w: 0, h: 0 };
         var url = URL.createObjectURL(f);
         return makeBitmap(f).then(function (im) {
@@ -997,7 +998,7 @@
         });
       }).then(function (a) {
         if (a) out.push(a);
-        if (a && thumbs) { var ti = document.createElement('img'); ti.src = a.url; thumbs.appendChild(ti); }
+        if (a && thumbs) { while (thumbs.children.length >= 100) thumbs.removeChild(thumbs.firstChild); var ti = document.createElement('img'); ti.src = a.url; thumbs.appendChild(ti); }
         setTimeout(next, 0);
       }).catch(function () { setTimeout(next, 0); });
     }
