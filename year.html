@@ -892,6 +892,26 @@
   function pad2(n) { return n < 10 ? '0' + n : '' + n; }
 
   /* ---------- 主流程 ---------- */
+  function loadDemo() {
+    var keys = ['nocturne', 'daybreak', 'island', 'wild', 'sea', 'food',
+      'pigment', 'warm', 'cool', 'blank', 'weekend', 'street'];
+    var files = [];
+    var pending = keys.length;
+    keys.forEach(function (k, i) {
+      var src = (typeof AV_IMG !== 'undefined' && AV_IMG[k]) ? AV_IMG[k] : '_av32/' + k + '.jpg';
+      fetch(src).then(function (r) {
+        if (!r.ok) throw 0;
+        return r.blob();
+      }).then(function (blob) {
+        var d = new Date(2026, i % 12, (i * 5 + 3) % 27 + 1, 8 + (i * 5) % 14, 15 + i * 3);
+        files.push(new File([blob], k + '.jpg', { type: 'image/jpeg', lastModified: d.getTime() }));
+      }).catch(function () {}).then(function () {
+        pending--;
+        if (pending === 0) handleFiles(files);
+      });
+    });
+  }
+
   function handleFiles(files) {
     var list = Array.prototype.slice.call(files).filter(function (f) {
       return /^image\//.test(f.type) && !/heic|heif/i.test(f.type);
@@ -1554,7 +1574,10 @@
       var btn2 = el('button', 'pick', '从相册选');
       btn2.onclick = function () { fileInput.click(); };
       s1.appendChild(btn2);
-      s1.appendChild(el('p', 'hint', '全选就行，照片不上传。'));
+      var btn3 = el('button', 'pick ghost', '看个示例');
+      btn3.onclick = function () { loadDemo(); };
+      s1.appendChild(btn3);
+      s1.appendChild(el('p', 'hint', '选多少张都行，照片只在本地算。'));
     }
     bgArt(s1, 'window');
     return s1;
