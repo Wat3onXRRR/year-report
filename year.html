@@ -794,6 +794,37 @@
     });
   }
 
+  /* 从文件头解析原始宽高，避免为了拿尺寸解码整张大图 */
+  function parseSize(buf, type) {
+    if (!buf || !buf.byteLength) return null;
+    var u8 = new Uint8Array(buf);
+    if (/jpe?g/i.test(type)) {
+      var i = 2;
+      while (i + 9 < u8.length) {
+        if (u8[i] !== 0xFF) { i++; continue; }
+        var m = u8[i + 1];
+        if (m >= 0xC0 && m <= 0xCF && m !== 0xC4 && m !== 0xC8 && m !== 0xCC) {
+          return { h: (u8[i + 5] << 8) | u8[i + 6], w: (u8[i + 7] << 8) | u8[i + 8] };
+        }
+        var len = (u8[i + 2] << 8) | u8[i + 3];
+        i += 2 + len;
+      }
+      return null;
+    }
+    if (/png/i.test(type) && u8.length >= 24) {
+      return { w: (u8[16] << 24) | (u8[17] << 16) | (u8[18] << 8) | u8[19], h: (u8[20] << 24) | (u8[21] << 16) | (u8[22] << 8) | u8[23] };
+    }
+    return null;
+  }
+  /* 分析用 512 内的小图解码，几百张也不卡；显示原图时才惰性解 */
+  function makeBitmap(file) {
+    if (window.createImageBitmap) {
+      return createImageBitmap(file, { resizeWidth: 512, resizeHeight: 512, resizeQuality: 'medium' })
+        .catch(function () { return loadImg(URL.createObjectURL(file)); });
+    }
+    return loadImg(URL.createObjectURL(file));
+  }
+
   var sample = document.createElement('canvas');
   sample.width = sample.height = 18;
   var sctx = sample.getContext('2d', { willReadFrequently: true });
@@ -926,26 +957,30 @@
 
     var out = [];
     var i = 0;
+    var thisYear = new Date().getFullYear();
+    var skippedYear = 0;
 
     function next() {
-      if (i >= list.length) { finish(out); return; }
+      if (i >= list.length) { finish(out, skippedYear); return; }
       var f = list[i];
       i++;
       bar.style.width = Math.round(i / list.length * 100) + '%';
-      if (i % 12 === 0) loadTxt.textContent = '正在看你的照片 ' + i + ' / ' + list.length;
+      loadTxt.textContent = '正在看你的照片 ' + i + ' / ' + list.length;
 
       readHead(f, 131072).then(function (buf) {
         var t = buf.byteLength ? exifTime(buf) : null;
         if (!t) t = new Date(f.lastModified || Date.now());
+        if (t.getFullYear() !== thisYear) { skippedYear++; setTimeout(next, 0); return; }
+        var sz = parseSize(buf, f.type) || { w: 0, h: 0 };
         var url = URL.createObjectURL(f);
-        return loadImg(url).then(function (im) {
+        return makeBitmap(f).then(function (im) {
           if (!im) return null;
           var a = analyze(im);
           a.file = f;
           a.url = url;
           a.time = t;
-          a.iw = im.naturalWidth;
-          a.ih = im.naturalHeight;
+          a.iw = sz.w || im.naturalWidth || im.width || 0;
+          a.ih = sz.h || im.naturalHeight || im.height || 0;
           return a;
         });
       }).then(function (a) {
@@ -969,8 +1004,12 @@
     return null;
   }
 
-  function finish(list) {
-    if (!list.length) { loading.classList.remove('on'); alert('一张都没读出来。'); return; }
+  function finish(list, skippedYear) {
+    if (!list.length) {
+      loading.classList.remove('on');
+      alert(skippedYear ? '这里没有今年的照片。年度总结只看今年拍的，换一个今年的文件夹试试。' : '一张都没读出来。');
+      return;
+    }
 
     var skipped = 0, raw = list.length;
     list = list.filter(function (a) {
@@ -1577,12 +1616,14 @@
       s1.appendChild(btn2);
       var btnDir = el('label', 'pick ghost', '从文件夹选');
       btnDir.htmlFor = 'dirfile';
-      if (!('webkitdirectory' in document.createElement('input'))) btnDir.style.display = 'none';
+      var dirOk = 'webkitdirectory' in document.createElement('input');
+      if (!dirOk) btnDir.style.display = 'none';
       s1.appendChild(btnDir);
       var btn3 = el('button', 'pick ghost', '看个示例');
       btn3.onclick = function () { loadDemo(); };
       s1.appendChild(btn3);
-      s1.appendChild(el('p', 'hint', '从文件夹选能一次读进整个相册，照片只在本地算。'));
+      if (dirOk) s1.appendChild(el('p', 'hint', '点「从文件夹选」，进去找「相机」或 DCIM 文件夹，整个文件夹一次进来。'));
+      s1.appendChild(el('p', 'hint lock', '🔒 照片只在你的手机上算，一张都不会上传。'));
     }
     bgArt(s1, 'window');
     return s1;
