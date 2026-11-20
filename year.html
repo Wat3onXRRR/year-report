@@ -274,7 +274,7 @@
   #loading.on{display:flex}
   #loading .bar{width:min(220px,56vw);height:2px;background:rgba(246,242,233,.18);position:relative;overflow:hidden}
   #loading .bar i{position:absolute;left:0;top:0;bottom:0;width:0;background:#f6f2e9;transition:width .2s linear}
-  #loading p{font-size:13px;color:rgba(246,242,233,.55)}
+  #loading p{font-size:13px;color:rgba(246,242,233,.55)}#loading .thumbs{display:flex;flex-wrap:wrap;gap:3px;max-width:min(300px,74vw);max-height:112px;overflow:hidden;margin-top:12px;justify-content:center}#loading .thumbs img{width:26px;height:26px;object-fit:cover;border-radius:4px;opacity:.85;background:rgba(246,242,233,.1)}
 
   /* 内容屏 */
   .kicker{
@@ -668,6 +668,7 @@
 <div id="loading">
   <div class="bar"><i></i></div>
   <p>正在看你的照片</p>
+  <div class="thumbs"></div>
 </div>
 
 <div id="editor">
@@ -775,6 +776,16 @@
     return null;
   }
 
+  function nameTime(name) {
+    var m = name.match(/(\d{4})(\d{2})(\d{2})/);
+    if (m) { var d = new Date(+m[1], +m[2] - 1, +m[3]); if (d.getFullYear() >= 2000 && d.getFullYear() <= 2100) return d; }
+    var me = name.match(/mmexport(\d{13})/);
+    if (me) return new Date(+me[1]);
+    var m2 = name.match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (m2) return new Date(+m2[1], +m2[2] - 1, +m2[3]);
+    return null;
+  }
+
   function readHead(file, n) {
     return new Promise(function (res) {
       var r = new FileReader();
@@ -819,7 +830,7 @@
   /* 分析用 512 内的小图解码，几百张也不卡；显示原图时才惰性解 */
   function makeBitmap(file) {
     if (window.createImageBitmap) {
-      return createImageBitmap(file, { resizeWidth: 512, resizeHeight: 512, resizeQuality: 'medium' })
+      return createImageBitmap(file, { resizeWidth: 256, resizeHeight: 256, resizeQuality: 'medium' })
         .catch(function () { return loadImg(URL.createObjectURL(file)); });
     }
     return loadImg(URL.createObjectURL(file));
@@ -953,6 +964,8 @@
 
     loading.classList.add('on');
     loadTxt.textContent = '正在看你的照片';
+    var thumbs = document.querySelector('#loading .thumbs');
+    if (thumbs) thumbs.innerHTML = '';
     bar.style.width = '0%';
 
     var out = [];
@@ -969,8 +982,8 @@
 
       readHead(f, 131072).then(function (buf) {
         var t = buf.byteLength ? exifTime(buf) : null;
-        if (!t) t = new Date(f.lastModified || Date.now());
-        if (t.getFullYear() !== thisYear) { skippedYear++; setTimeout(next, 0); return; }
+        if (!t) t = nameTime(f.name);
+        if (t && t.getFullYear() !== thisYear) { skippedYear++; setTimeout(next, 0); return; }
         var sz = parseSize(buf, f.type) || { w: 0, h: 0 };
         var url = URL.createObjectURL(f);
         return makeBitmap(f).then(function (im) {
@@ -985,6 +998,7 @@
         });
       }).then(function (a) {
         if (a) out.push(a);
+        if (a && thumbs) { var ti = document.createElement('img'); ti.src = a.url; thumbs.appendChild(ti); }
         setTimeout(next, 0);
       }).catch(function () { setTimeout(next, 0); });
     }
@@ -1602,7 +1616,7 @@
       var st = document.createElement('style');
       st.id = 'modal-style';
       st.textContent = '.modal-mask{position:fixed;inset:0;background:rgba(18,14,10,.62);z-index:999;display:flex;align-items:center;justify-content:center;padding:24px}' +
-        '.modal-card{background:#fffdf7;border-radius:16px;max-width:420px;width:100%;padding:26px 22px;box-shadow:0 24px 80px rgba(0,0,0,.35);max-height:82vh;overflow:auto}' +
+        '.modal-card{background:#fffdf7;border-radius:16px;max-width:420px;width:100%;padding:26px 22px;box-shadow:0 24px 80px rgba(0,0,0,.35);max-height:82vh;overflow:auto;position:relative}.modal-x{position:absolute;top:10px;right:12px;background:none;border:none;font-size:22px;color:#b0a699;cursor:pointer;line-height:1;padding:4px 8px}' +
         '.modal-title{font-size:20px;font-weight:700;margin:0 0 14px;color:#1a1612;line-height:1.45}' +
         '.modal-body{font-size:15px;line-height:1.8;color:#3a332c;margin:0 0 20px}.modal-body p{margin:0 0 10px}' +
         '.modal-btn{width:100%;padding:14px;border:none;border-radius:12px;background:#1a1612;color:#fffdf7;font-size:16px;font-weight:600;cursor:pointer}' +
@@ -1618,6 +1632,9 @@
     var btn = el('button', 'modal-btn', okText);
     btn.onclick = function () { mask.remove(); if (onOk) onOk(); };
     card.appendChild(btn);
+    var x = el('button', 'modal-x', '✕');
+    x.onclick = function () { mask.remove(); };
+    card.appendChild(x);
     mask.appendChild(card);
     mask.onclick = function (e) { if (e.target === mask) mask.remove(); };
     document.body.appendChild(mask);
