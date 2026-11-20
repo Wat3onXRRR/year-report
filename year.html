@@ -959,7 +959,7 @@
     var list = Array.prototype.slice.call(files).filter(function (f) {
       return /^image\//.test(f.type) && !/heic|heif/i.test(f.type);
     });
-    if (!list.length) { alert('这些文件读不了，换一批 jpg 或 png 试试。'); return; }
+    if (!list.length) { showModal('照片读不了', '<p>这些文件读不了，换一批 jpg 或 png 试试。</p>', '好'); return; }
     if (list.length > MAX) list = list.slice(0, MAX);
 
     loading.classList.add('on');
@@ -983,7 +983,6 @@
       readHead(f, 131072).then(function (buf) {
         var t = buf.byteLength ? exifTime(buf) : null;
         if (!t) t = nameTime(f.name);
-        if (t && t.getFullYear() !== thisYear) { skippedYear++; setTimeout(next, 0); return; }
         var sz = parseSize(buf, f.type) || { w: 0, h: 0 };
         var url = URL.createObjectURL(f);
         return makeBitmap(f).then(function (im) {
@@ -1021,10 +1020,14 @@
   function finish(list, skippedYear) {
     if (!list.length) {
       loading.classList.remove('on');
-      alert(skippedYear ? '这里没有今年的照片。年度总结只看今年拍的，换一个今年的文件夹试试。' : '一张都没读出来。');
+      showModal('没找到照片', '<p>' + (skippedYear ? '这里没有今年的照片。年度总结只看今年拍的，换一个今年的文件夹试试。' : '一张都没读出来。') + '</p>', '好');
       return;
     }
 
+    var thisYear = new Date().getFullYear();
+    list.forEach(function (p) { if (!p.time) p.time = new Date(thisYear, 0, 1); });
+    var cur = list.filter(function (p) { return p.time.getFullYear() === thisYear; });
+    if (cur.length) list = cur;
     var skipped = 0, raw = list.length;
     list = list.filter(function (a) {
       if (junkReason(a)) { skipped++; return false; }
@@ -1034,7 +1037,7 @@
     S.rawCount = raw;
     if (!list.length) {
       loading.classList.remove('on');
-      alert('这批里几乎都是截图和文档，没有能用的照片。换一批试试。');
+      showModal('没有能用的照片', '<p>这批里几乎都是截图和文档，没有能用的照片。换一批试试。</p>', '好');
       return;
     }
 
@@ -3617,7 +3620,7 @@
       return /^image\//.test(f.type);
     });
     if (imgs.length) handleFiles(imgs);
-    else alert('这个文件夹里没找到图片，试试「相机」或 DCIM 里的文件夹。');
+    else showModal('没找到图片', '<p>这个文件夹里没找到图片，试试「相机」或 DCIM 里的文件夹。</p>', '好');
     dirInput.value = '';
   });
 
