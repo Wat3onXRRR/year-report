@@ -1614,7 +1614,7 @@
     if (host.innerHTML) sec.appendChild(host);
   }
 
-  function showModal(title, bodyHtml, okText, onOk) {
+  function showModal(title, bodyHtml, okText, onOk, okIsLabel) {
     if (!document.getElementById('modal-style')) {
       var st = document.createElement('style');
       st.id = 'modal-style';
@@ -1622,18 +1622,24 @@
         '.modal-card{background:#fffdf7;border-radius:16px;max-width:420px;width:100%;padding:26px 22px;box-shadow:0 24px 80px rgba(0,0,0,.35);max-height:82vh;overflow:auto;position:relative}.modal-x{position:absolute;top:10px;right:12px;background:none;border:none;font-size:22px;color:#b0a699;cursor:pointer;line-height:1;padding:4px 8px}' +
         '.modal-title{font-size:20px;font-weight:700;margin:0 0 14px;color:#1a1612;line-height:1.45}' +
         '.modal-body{font-size:15px;line-height:1.8;color:#3a332c;margin:0 0 20px}.modal-body p{margin:0 0 10px}' +
-        '.modal-btn{width:100%;padding:14px;border:none;border-radius:12px;background:#1a1612;color:#fffdf7;font-size:16px;font-weight:600;cursor:pointer}' +
+        '.modal-btn{display:block;text-align:center;width:100%;padding:14px;border:none;border-radius:12px;background:#1a1612;color:#fffdf7;font-size:16px;font-weight:600;cursor:pointer}' +
         '.help-link{background:none;border:none;color:#7a6d5e;font-size:14px;text-decoration:underline;cursor:pointer;margin-top:14px;display:block;padding:0}';
       document.head.appendChild(st);
     }
+    var old = document.querySelector('.modal-mask');
+    if (old) old.remove();
     var mask = el('div', 'modal-mask');
     var card = el('div', 'modal-card');
     card.appendChild(el('h3', 'modal-title', title));
     var body = el('div', 'modal-body');
     body.innerHTML = bodyHtml;
     card.appendChild(body);
-    var btn = el('button', 'modal-btn', okText);
-    btn.onclick = function () { mask.remove(); if (onOk) onOk(); };
+    var btn = okIsLabel ? el('label', 'modal-btn', okText) : el('button', 'modal-btn', okText);
+    if (okIsLabel) btn.htmlFor = 'dirfile';
+    btn.onclick = function () {
+      setTimeout(function () { mask.remove(); }, 80);
+      if (onOk) onOk();
+    };
     card.appendChild(btn);
     var x = el('button', 'modal-x', '✕');
     x.onclick = function () { mask.remove(); };
@@ -1649,7 +1655,7 @@
       '<p>没有云端、没有账号、没有后台。所有统计都在你浏览器本地算，算完就丢。</p>' +
       '<p>关掉这个页面，我们手上什么都不留，谁也看不到你的照片。</p>' +
       '<p>整个过程只有「把文件夹里的照片读进来算」这一步，仅此而已。</p>',
-      '我知道了，继续选照片', onOk);
+      '我知道了，继续选照片', null, true);
   }
   function showHelp() {
     showModal('怎么找到照片文件夹',
@@ -1665,10 +1671,7 @@
     var dirOk = 'webkitdirectory' in document.createElement('input');
     function pickFolder() {
       if (!dirOk) { showHelp(); return; }
-      showPrivacy(function () {
-        var d = document.getElementById('dirfile');
-        if (d) d.click();
-      });
+      showPrivacy();
     }
     if (withData) {
       s1.appendChild(el('h1', 'year num', S.year));
