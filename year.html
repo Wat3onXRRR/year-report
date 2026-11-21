@@ -665,7 +665,7 @@
 
 <main id="deck"></main>
 
-<div id="ver" style="position:fixed;left:10px;bottom:10px;z-index:99999;font-size:11px;font-family:ui-monospace,Consolas,monospace;color:#fff;mix-blend-mode:difference;pointer-events:none;letter-spacing:.5px">v2026.11.20.1900</div>
+<div id="ver" style="position:fixed;left:10px;bottom:10px;z-index:99999;font-size:11px;font-family:ui-monospace,Consolas,monospace;color:#fff;mix-blend-mode:difference;pointer-events:none;letter-spacing:.5px">v2026.11.21.1355</div>
 <div id="redo" style="position:fixed;left:10px;bottom:30px;z-index:99999;font-size:12px;font-family:ui-monospace,Consolas,monospace;color:#fff;mix-blend-mode:difference;cursor:pointer;display:none;letter-spacing:.5px;pointer-events:auto">重新选照片</div>
 
 <div id="loading">
@@ -705,7 +705,7 @@
 <input type="file" id="file" accept="image/*" multiple style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
 <input type="file" id="dirfile" webkitdirectory multiple style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
 
-<script src="lib/tf.min.js"></script>
+<script src="lib/tf.min.js" defer></script>
 <script>
 (function () {
   'use strict';
@@ -1097,7 +1097,7 @@
       });
     }
 
-    var CONC = Math.min(3, list.length);
+    var CONC = Math.min(6, list.length);
     for (var k = 0; k < CONC; k++) worker();
   }
 
@@ -3397,7 +3397,7 @@
   var SCENE_CN = { landscape:'风景', animal:'动物', food:'食物', object:'物件' };
 
   function loadMNet() {
-    if (!window.tf) return;
+    if (!window.tf) { setTimeout(loadMNet, 900); return; }
     try {
       tf.loadGraphModel('lib/mnet/model.json').then(function (m) {
         MNET = m; MNET_READY = true;
@@ -3751,7 +3751,8 @@
     STICKERS_IMG[k] = im;
   });
   window.STICKERS = STICKERS;
-  setTimeout(loadMNet, 400);
+  if (window.requestIdleCallback) { requestIdleCallback(loadMNet, { timeout: 6000 }); }
+  else { setTimeout(loadMNet, 2500); }
 window.__YEAR = {
     S: S, handleFiles: handleFiles,
     get modelReady() { return MNET_READY; },
