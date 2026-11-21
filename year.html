@@ -508,72 +508,6 @@
     padding:13px 24px 14px;border-radius:2px;cursor:pointer;
   }
 
-  /* 编辑面板 */
-  #editor{
-    position:fixed;top:0;left:0;right:0;bottom:0;z-index:30;display:none;
-    background:#100e0c;
-    flex-direction:column;
-    padding:max(16px,env(safe-area-inset-top)) 16px 18px;
-  }
-  #editor > *{max-width:520px;width:100%;margin-left:auto;margin-right:auto}
-  #editor .edscroll{max-width:520px}
-  #edActs{max-width:520px}
-  #editor.on{display:flex}
-  .edscroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-right:2px}
-  #editor h3{font-size:16px;font-weight:700;margin-bottom:3px}
-  #editor p.tip{font-size:12px;color:rgba(246,242,233,.5);margin-bottom:14px;line-height:1.6}
-  .edlabel{
-    font-size:11px;letter-spacing:.08em;color:rgba(246,242,233,.42);
-    margin:16px 0 8px;
-  }
-  .edrow{display:flex;gap:8px;overflow-x:auto;overflow-y:hidden;padding-bottom:4px}
-  #edLayouts .lay,#edPapers .pap,#edStickers .stk{
-    flex:none;cursor:pointer;
-    border:1px solid rgba(246,242,233,.18);
-    background:rgba(255,255,255,.04);
-    border-radius:3px;
-    display:flex;align-items:center;justify-content:center;
-  }
-  #edLayouts .lay{width:64px;height:46px;font-size:12px;color:rgba(246,242,233,.72);font-weight:600}
-  #edLayouts .lay.on{border-color:#f6f2e9;color:#f6f2e9;background:rgba(255,255,255,.12)}
-  #edPapers .pap{box-shadow:inset 0 0 0 1px rgba(246,242,233,.22);width:34px;height:34px;border-radius:50%;border-color:rgba(246,242,233,.28)}
-  #edPapers .pap.on{box-shadow:0 0 0 2px #100e0c,0 0 0 3.5px #f6f2e9}
-  #edStickers .stk{width:44px;height:44px;color:rgba(246,242,233,.8)}
-  #edStickers .stk.on{border-color:#f6f2e9;color:#f6f2e9;background:rgba(255,255,255,.14)}
-  #edPicked{margin-top:9px;min-height:34px;align-items:center}
-  #edPicked .pk{
-    width:34px;height:34px;border-radius:7px;display:flex;align-items:center;justify-content:center;
-    border:1px dashed rgba(246,242,233,.22);color:rgba(246,242,233,.85);cursor:pointer;
-  }
-  #edPicked .pkhint{font-size:11.5px;color:rgba(246,242,233,.34)}
-  #edPhotos{
-    display:flex;gap:8px;overflow-x:auto;overflow-y:hidden;
-    padding-bottom:6px;flex:none;
-    -webkit-overflow-scrolling:touch;
-  }
-  #edPhotos .pickph{
-    flex:none;width:74px;height:98px;border-radius:2px;overflow:hidden;
-    position:relative;opacity:.42;transition:opacity .18s;cursor:pointer;
-  }
-  #edPhotos .pickph img{width:100%;height:100%;object-fit:cover;display:block}
-  #edPhotos .pickph.on{opacity:1;outline:2px solid #f6f2e9;outline-offset:-2px}
-  #editor textarea{
-    margin-top:0;flex:none;
-    background:rgba(255,255,255,.06);border:0;border-radius:2px;
-    color:#f6f2e9;font:inherit;font-size:15px;line-height:1.6;
-    padding:12px 13px;resize:none;height:84px;width:100%;
-  }
-  #editor textarea::placeholder{color:rgba(246,242,233,.34)}
-  #edCount{font-size:11px;color:rgba(246,242,233,.42);margin-top:5px;text-align:right}
-  #edActs{display:flex;gap:10px;padding-top:14px}
-  #edActs button{
-    flex:1;font:inherit;font-size:15px;font-weight:700;
-    padding:14px 0 15px;border-radius:2px;cursor:pointer;border:0;
-  }
-  #edCancel{background:rgba(255,255,255,.1);color:#f6f2e9}
-  #edOk{background:#f6f2e9;color:#14120f}
-  #edOk:disabled{opacity:.3}
-
   /* 照片 */
   .frame{
     margin:clamp(18px,4vw,26px) 0 0;
@@ -665,7 +599,7 @@
 
 <main id="deck"></main>
 
-<div id="ver" style="position:fixed;left:10px;bottom:10px;z-index:99999;font-size:11px;font-family:ui-monospace,Consolas,monospace;color:#fff;mix-blend-mode:difference;pointer-events:none;letter-spacing:.5px">v2026.11.21.1430</div>
+<div id="ver" style="position:fixed;left:10px;bottom:10px;z-index:99999;font-size:11px;font-family:ui-monospace,Consolas,monospace;color:#fff;mix-blend-mode:difference;pointer-events:none;letter-spacing:.5px">v2026.11.21.1431</div>
 <div id="redo" style="position:fixed;left:10px;bottom:30px;z-index:99999;font-size:12px;font-family:ui-monospace,Consolas,monospace;color:#fff;mix-blend-mode:difference;cursor:pointer;display:none;letter-spacing:.5px;pointer-events:auto">重新选照片</div>
 
 <div id="loading">
@@ -674,32 +608,6 @@
   <div class="thumbs"></div>
 </div>
 
-<div id="editor">
-  <div class="edscroll">
-    <h3>写一页</h3>
-    <p class="tip">挑照片、选版式、贴贴纸。想写几页写几页。</p>
-
-    <div class="edlabel">版式</div>
-    <div id="edLayouts" class="edrow"></div>
-
-    <div class="edlabel">纸色</div>
-    <div id="edPapers" class="edrow"></div>
-
-    <div class="edlabel">照片</div>
-    <div id="edPhotos"></div>
-
-    <div class="edlabel">一句话</div>
-    <textarea id="edText" maxlength="46" placeholder="这一页想说什么"></textarea>
-    <div id="edCount">0 / 46</div>
-
-    <div class="edlabel">贴纸</div>
-    <div id="edStickers" class="edrow"></div>
-    <div id="edPicked" class="edrow picked"></div>
-  </div>
-  <div id="edActs">
-    <button id="edCancel">算了</button>
-    <button id="edOk" disabled>加进去</button>
-  </div>
 </div>
 
 <input type="file" id="file" accept="image/*" multiple style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
@@ -936,27 +844,6 @@
 
   function pad2(n) { return n < 10 ? '0' + n : '' + n; }
 
-  /* ---------- 主流程 ---------- */
-  function loadDemo() {
-    var keys = ['nocturne', 'daybreak', 'island', 'wild', 'sea', 'food',
-      'pigment', 'warm', 'cool', 'blank', 'weekend', 'street'];
-    var files = [];
-    var pending = keys.length;
-    keys.forEach(function (k, i) {
-      var src = (typeof AV_IMG !== 'undefined' && AV_IMG[k]) ? AV_IMG[k] : '_av32/' + k + '.jpg';
-      fetch(src).then(function (r) {
-        if (!r.ok) throw 0;
-        return r.blob();
-      }).then(function (blob) {
-        var d = new Date(2026, i % 12, (i * 5 + 3) % 27 + 1, 8 + (i * 5) % 14, 15 + i * 3);
-        files.push(new File([blob], k + '.jpg', { type: 'image/jpeg', lastModified: d.getTime() }));
-      }).catch(function () {}).then(function () {
-        pending--;
-        if (pending === 0) handleFiles(files);
-      });
-    });
-  }
-
   /* ---- 本地缓存：刷新/重开不用重新读照片 ---- */
   var IDB = null;
   function idbOpen() {
@@ -1105,19 +992,6 @@
 
     var CONC = Math.min(6, list.length);
     for (var k = 0; k < CONC; k++) worker();
-  }
-
-  /* 把不像「拍下来记住的事」的图挑出去：截图、长图、文档、二维码、票据 */
-  function junkReason(a) {
-    var ar = a.iw / a.ih;
-    if (a.ih > 900 && ar < 0.56) return 'shot';      // 手机截图、竖长图
-    if (ar < 0.36) return 'long';                    // 滚动长图
-    if (ar > 2.7) return 'wide';                     // 全景拼图
-    if (a.light > 0.90 && a.sat < 0.07) return 'doc';// 白底文档、票据
-    if (a.edge > 0.30 && a.sat < 0.13) return 'text';// 文字密集
-    var top = Math.max.apply(null, a.hb) / (a.n || 1);
-    if (top > 0.88 && a.sat < 0.18 && a.edge < 0.09) return 'flat'; // 二维码、纯色块
-    return null;
   }
 
   function finish(list, skippedYear, skipYears) {
@@ -1940,7 +1814,6 @@
             var o = inferOne(im);
             if (o && LABELS && LABELS[o.idx]) {
               key = sceneOf(LABELS[o.idx][1]);
-              try { console.log('SEM', o.idx, LABELS[o.idx][1], key, 'skin', ph.skin, 'center', ph.center); } catch (e2) {}
             }
           }
           if (tagIsPerson(ph) && (!key || key === 'object')) key = 'person';
@@ -3143,239 +3016,6 @@
     return im;
   }
 
-  function esc(s) {
-    return String(s).replace(/[&<>"]/g, function (c) {
-      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
-    });
-  }
-
-  /* ---------- 写一页 ---------- */
-  var editor = document.getElementById('editor');
-  var edPhotos = document.getElementById('edPhotos');
-  var edText = document.getElementById('edText');
-  var edCount = document.getElementById('edCount');
-  var edOk = document.getElementById('edOk');
-  var edLayouts = document.getElementById('edLayouts');
-  var edPapers = document.getElementById('edPapers');
-  var edStickers = document.getElementById('edStickers');
-  var edPicked = document.getElementById('edPicked');
-  var pick = [], curLayout = 'full', curPaper = 0, curStick = [];
-
-  function buildEditor() {
-    edLayouts.innerHTML = '';
-    LAYOUTS.forEach(function (l) {
-      var d = el('div', 'lay' + (l.id === curLayout ? ' on' : ''), l.k);
-      d.onclick = function () {
-        curLayout = l.id;
-        [].forEach.call(edLayouts.children, function (x) { x.classList.remove('on'); });
-        d.classList.add('on');
-      };
-      edLayouts.appendChild(d);
-    });
-
-    edPapers.innerHTML = '';
-    PAPERS.forEach(function (pp, i) {
-      var d = el('div', 'pap' + (i === curPaper ? ' on' : ''));
-      d.style.background = pp.bg;
-      d.onclick = function () {
-        curPaper = i;
-        [].forEach.call(edPapers.children, function (x) { x.classList.remove('on'); });
-        d.classList.add('on');
-      };
-      edPapers.appendChild(d);
-    });
-
-    edStickers.innerHTML = '';
-    STICKER_KEYS.forEach(function (k) {
-      var d = el('div', 'stk');
-      d.innerHTML = stickerSVG(k, 22);
-      d.title = '点一下贴一个';
-      d.onclick = function () {
-        if (curStick.length >= 20) return;
-        // 散着贴，别都堆在一个角
-        var n = curStick.length;
-        var spots = [[6,10],[74,8],[10,74],[78,72],[44,6],[8,42],[80,44],[42,84]];
-        var sp = spots[n % spots.length];
-        curStick.push({ k: k, x: sp[0], y: sp[1], s: 44 });
-        renderStickPick();
-      };
-      edStickers.appendChild(d);
-    });
-    renderStickPick();
-  }
-
-  function renderStickPick() {
-    if (!edPicked) return;
-    edPicked.innerHTML = '';
-    curStick.forEach(function (st, i) {
-      var d = el('div', 'pk');
-      d.innerHTML = stickerSVG(st.k, 20);
-      d.title = '点一下拿掉';
-      d.onclick = function () {
-        curStick.splice(i, 1);
-        renderStickPick();
-      };
-      edPicked.appendChild(d);
-    });
-    if (!curStick.length) {
-      edPicked.appendChild(el('span', 'pkhint', '还没贴。上面点一个试试。'));
-    }
-  }
-
-  /* 成品页上的贴纸可以拖着挪 */
-  function bindStickerDrag(mp, deco, pg) {
-    [].forEach.call(deco.children, function (sp) {
-      var idx = +sp.dataset.i;
-      var mode = null, sx = 0, sy = 0, ox = 0, oy = 0, osz = 38;
-
-      function st() {
-        if (!pg.stickers) pg.stickers = [];
-        var v = pg.stickers[idx];
-        if (typeof v === 'string') {
-          v = { k: v, x: parseFloat(sp.style.left) || 0, y: parseFloat(sp.style.top) || 0, s: 38 };
-          pg.stickers[idx] = v;
-        }
-        if (!v) { v = { k: 'star', x: 0, y: 0, s: 38 }; pg.stickers[idx] = v; }
-        return v;
-      }
-
-      sp.addEventListener('pointerdown', function (e) {
-        var onGrip = e.target && e.target.classList && e.target.classList.contains('grip');
-        mode = onGrip ? 'size' : 'move';
-        sx = e.clientX; sy = e.clientY;
-        ox = parseFloat(sp.style.left) || 0;
-        oy = parseFloat(sp.style.top) || 0;
-        osz = parseFloat(sp.style.width) || 38;
-        sp.classList.add('on');
-        try { sp.setPointerCapture(e.pointerId); } catch (err) {}
-        e.preventDefault();
-        e.stopPropagation();
-      });
-
-      sp.addEventListener('pointermove', function (e) {
-        if (!mode) return;
-        var r = mp.getBoundingClientRect();
-        if (mode === 'move') {
-          var nx = ox + (e.clientX - sx) / r.width * 100;
-          var ny = oy + (e.clientY - sy) / r.height * 100;
-          nx = Math.max(-8, Math.min(96, nx));
-          ny = Math.max(-8, Math.min(96, ny));
-          sp.style.left = nx + '%';
-          sp.style.top = ny + '%';
-          var v = st(); v.x = nx; v.y = ny;
-        } else {
-          var d = Math.max(e.clientX - sx, e.clientY - sy);
-          var ns = Math.max(20, Math.min(160, osz + d));
-          sp.style.width = ns + 'px';
-          sp.style.height = ns + 'px';
-          var img = sp.querySelector('img');
-          if (img) { img.width = ns; img.height = ns; }
-          st().s = ns;
-        }
-      });
-
-      var end = function (e) {
-        if (!mode) return;
-        mode = null;
-        sp.classList.remove('on');
-        try { sp.releasePointerCapture(e.pointerId); } catch (err) {}
-      };
-      sp.addEventListener('pointerup', end);
-      sp.addEventListener('pointercancel', end);
-    });
-  }
-
-  function openEditor() {
-    pick = [];
-    curLayout = 'full';
-    curPaper = 1;
-    curStick = [];
-    edText.value = '';
-    edCount.textContent = '0 / 46';
-    edOk.disabled = true;
-    buildEditor();
-
-    edPhotos.innerHTML = '';
-    var pool = S.photos.slice();
-    if (pool.length > 60) {
-      var step = pool.length / 60, picked = [];
-      for (var i = 0; i < 60; i++) picked.push(pool[Math.floor(i * step)]);
-      pool = picked;
-    }
-
-    pool.forEach(function (p) {
-      var real = S.photos.indexOf(p);
-      var d = el('div', 'pickph');
-      d.appendChild(imgEl(p));
-      d.onclick = function () {
-        var at = pick.indexOf(real);
-        if (at >= 0) { pick.splice(at, 1); d.classList.remove('on'); }
-        else {
-          if (pick.length >= 3) return;
-          pick.push(real);
-          d.classList.add('on');
-        }
-        edOk.disabled = pick.length === 0;
-      };
-      edPhotos.appendChild(d);
-    });
-    editor.classList.add('on');
-  }
-
-  function closeEditor() { editor.classList.remove('on'); }
-
-  edText.addEventListener('input', function () {
-    edCount.textContent = edText.value.length + ' / 46';
-  });
-  document.getElementById('edCancel').onclick = closeEditor;
-  function makeThumb(p, max) {
-    return new Promise(function (res) {
-      var im = new Image();
-      im.onload = function () {
-        var s = Math.min(1, max / Math.max(im.naturalWidth, im.naturalHeight));
-        var c = document.createElement('canvas');
-        c.width = Math.max(1, Math.round(im.naturalWidth * s));
-        c.height = Math.max(1, Math.round(im.naturalHeight * s));
-        c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
-        res(c.toDataURL('image/jpeg', 0.72));
-      };
-      im.onerror = function () { res(null); };
-      im.src = p.url;
-    });
-  }
-
-  edOk.onclick = function () {
-    if (!pick.length) return;
-    edOk.disabled = true;
-    var lay = curLayout, pap = curPaper, stk = curStick.slice();
-    Promise.all(pick.map(function (i) { return makeThumb(S.photos[i], 420); }))
-      .then(function (shots) {
-        S.pages.push({
-          idx: pick.slice(),
-          text: edText.value.trim(),
-          shots: shots.filter(Boolean),
-          layout: lay,
-          paper: pap,
-          stickers: stk
-        });
-        closeEditor();
-        render();
-        var target = 8 + S.pages.length - 1;
-        setTimeout(function () {
-          var secs = deck.querySelectorAll('section');
-          var want = secs[target];
-          if (!want) return;
-          deck.style.scrollSnapType = 'none';
-          deck.style.scrollBehavior = 'auto';
-          deck.scrollTop = want.offsetTop;
-          setTimeout(function () {
-            deck.style.scrollSnapType = '';
-            deck.style.scrollBehavior = '';
-          }, 260);
-        }, 60);
-      });
-  };
-
   /* ---------- 进入时显影 ---------- */
   function revealAll() {
     var frames = deck.querySelectorAll('.frame');
@@ -3513,52 +3153,6 @@
     { k: '满页', id: 'bleed' },
     { k: '便签', id: 'note' }
   ];
-  /* ---------- 分享 ---------- */
-  var shareUrl = null, qrImg = null;
-
-  function sharePost() {
-    var bgH = S.top[0] ? S.top[0][1] * 30 + 12 : 38;
-    var p0 = S.photos[0], pN = S.photos[S.photos.length - 1];
-    var fmt = function (d) { return (d.getMonth() + 1) + ' 月 ' + d.getDate() + ' 日'; };
-    var body = {
-      year: S.year,
-      total: S.total,
-      bg: 'hsl(' + bgH + ',26%,15%)',
-      first: p0 ? fmt(p0.time) : '',
-      last: pN ? fmt(pN.time) : '',
-      monthsLine: '3 月占 ' + S.months[S.months.indexOf(Math.max.apply(null, S.months))] + ' 张',
-      swatches: S.top.map(function (t) { return hueColor(t[1]); }),
-      months: S.months,
-      peakDay: S.peakDay ? S.year + ' 年 ' + S.peakDay.replace('-', ' 月 ') + ' 日' : '',
-      peakN: S.peakDayCount,
-      tags: S.tags.slice(0, 4).map(function (t) { return t.k; }),
-      pages: S.pages.map(function (p, i) {
-        return {
-          text: p.text || '',
-          n: p.idx.length,
-          i: i,
-          imgs: (p.shots || []).slice(0, 2)
-        };
-      })
-    };
-    return fetch('/api/share', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    }).then(function (r) { return r.json(); })
-      .then(function (j) { shareUrl = j.url; return j.url; })
-      .catch(function () { return null; });
-  }
-
-  function loadQR(url) {
-    return new Promise(function (res) {
-      var im = new Image();
-      im.onload = function () { res(im); };
-      im.onerror = function () { res(null); };
-      im.src = '/qr?d=' + encodeURIComponent(url);
-    });
-  }
-
   /* ---------- 卡片 ---------- */
   var IMG_CACHE = {};
   function loadPhoto(url) {
@@ -3566,15 +3160,6 @@
     var im = new Image();
     IMG_CACHE[url] = im;
     im.src = url;
-    return im;
-  }
-
-  var STK_SRC = {};
-  function loadStk(k) {
-    if (STK_SRC[k]) return STK_SRC[k];
-    var im = new Image();
-    STK_SRC[k] = im;
-    im.src = (window.STICKERS && window.STICKERS[k]) || '';
     return im;
   }
 
