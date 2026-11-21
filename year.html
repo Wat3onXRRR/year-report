@@ -665,7 +665,7 @@
 
 <main id="deck"></main>
 
-<div id="ver" style="position:fixed;left:10px;bottom:10px;z-index:99999;font-size:11px;font-family:ui-monospace,Consolas,monospace;color:#fff;mix-blend-mode:difference;pointer-events:none;letter-spacing:.5px">v2026.11.21.1420</div>
+<div id="ver" style="position:fixed;left:10px;bottom:10px;z-index:99999;font-size:11px;font-family:ui-monospace,Consolas,monospace;color:#fff;mix-blend-mode:difference;pointer-events:none;letter-spacing:.5px">v2026.11.21.1430</div>
 <div id="redo" style="position:fixed;left:10px;bottom:30px;z-index:99999;font-size:12px;font-family:ui-monospace,Consolas,monospace;color:#fff;mix-blend-mode:difference;cursor:pointer;display:none;letter-spacing:.5px;pointer-events:auto">重新选照片</div>
 
 <div id="loading">
@@ -1380,6 +1380,7 @@
 
   /* 封面：还没选照片时也先站在这里 */
   function monthDay(t) {
+    if (!t || isNaN(t.getTime())) return '日期未知';
     return (t.getMonth() + 1) + ' 月 ' + t.getDate() + ' 日';
   }
 
@@ -2470,8 +2471,11 @@
 
   function render() {
     var y = S.year;
-    var first = S.photos[0].time, last = S.photos[S.photos.length - 1].time;
-    var span = Math.round((last - first) / 86400000) + 1;
+    var first = S.photos.length ? S.photos[0].time : null;
+    var last = S.photos.length ? S.photos[S.photos.length - 1].time : null;
+    var span = (first && last && !isNaN(first) && !isNaN(last))
+      ? Math.round((last - first) / 86400000) + 1
+      : 0;
     var bgH = S.top[0] ? S.top[0][1] * 30 + 12 : 38;
 
     deck.innerHTML = '';
@@ -2651,7 +2655,7 @@
     var pd = S.days[S.peakDay] || [];
     var pick = pd[Math.floor(pd.length / 2)];
     var s5 = el('section');
-    s5.appendChild(el('div', 'stamp num', y + '.' + S.peakDay));
+    s5.appendChild(el('div', 'stamp num', y + (S.peakDay ? '.' + S.peakDay : '')));
     s5.appendChild(el('p', 'kicker', '拍得最多的一天'));
     s5.appendChild(el('div', 'big num', S.peakDayCount + '<small>张</small>'));
     s5.appendChild(el('p', 'say', '占全年的 ' + Math.round(S.peakDayCount / S.total * 100) + '%。'));
@@ -2659,8 +2663,8 @@
       var f1 = el('figure', 'frame');
       f1.appendChild(imgEl(pick));
       f1.appendChild(el('figcaption', null,
-        '<span>' + S.peakDay.replace('-', ' 月 ') + ' 日</span><span class="num">' +
-        pad2(pick.time.getHours()) + ':' + pad2(pick.time.getMinutes()) + '</span>'));
+        '<span>' + (S.peakDay ? S.peakDay.replace('-', ' 月 ') : '某天') + ' 日</span><span class="num">' +
+        pad2(pick && pick.time ? pick.time.getHours() : 0) + ':' + pad2(pick && pick.time ? pick.time.getMinutes() : 0) + '</span>'));
       s5.appendChild(f1);
     }
     tint(s5, 26, 54, 32);
@@ -2670,7 +2674,7 @@
     var qd = S.days[S.quietDay] || [];
     var qp = qd[0];
     var s6 = el('section');
-    s6.appendChild(el('div', 'stamp num', y + '.' + S.quietDay));
+    s6.appendChild(el('div', 'stamp num', y + (S.quietDay ? '.' + S.quietDay : '')));
     s6.appendChild(el('p', 'kicker', '拍得最少的一天'));
     s6.appendChild(el('div', 'big num', qd.length + '<small>张</small>'));
     s6.appendChild(el('p', 'say', '只有一张。那天发生了什么，这张大概记得。'));
@@ -2678,8 +2682,8 @@
       var f2 = el('figure', 'frame');
       f2.appendChild(imgEl(qp));
       f2.appendChild(el('figcaption', null,
-        '<span>' + S.quietDay.replace('-', ' 月 ') + ' 日</span><span class="num">' +
-        pad2(qp.time.getHours()) + ':' + pad2(qp.time.getMinutes()) + '</span>'));
+        '<span>' + (S.quietDay ? S.quietDay.replace('-', ' 月 ') : '某天') + ' 日</span><span class="num">' +
+        pad2(qp && qp.time ? qp.time.getHours() : 0) + ':' + pad2(qp && qp.time ? qp.time.getMinutes() : 0) + '</span>'));
       s6.appendChild(f2);
     }
     s6.appendChild(el('p', 'foot',
@@ -2708,7 +2712,7 @@
       });
       s65.appendChild(lr);
       s65.appendChild(el('p','say','一年里最亮的那张，和最暗的那张，隔了 ' +
-        Math.round(Math.abs(bright.time - dark.time)/86400000) + ' 天。'));
+        ((bright.time && dark.time) ? Math.round(Math.abs(bright.time - dark.time)/86400000) + ' 天' : '一段日子') + '。'));
       s65.appendChild(el('p','foot','亮度是逐张采样算的，不看你当时觉得亮不亮。'));
       tint(s65, bgH, 20, 22);
       bgArt(s65, 'cloud');
