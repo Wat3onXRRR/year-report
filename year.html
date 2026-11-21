@@ -665,7 +665,7 @@
 
 <main id="deck"></main>
 
-<div id="ver" style="position:fixed;left:10px;bottom:10px;z-index:99999;font-size:11px;font-family:ui-monospace,Consolas,monospace;color:#fff;mix-blend-mode:difference;pointer-events:none;letter-spacing:.5px">v2026.11.21.1400</div>
+<div id="ver" style="position:fixed;left:10px;bottom:10px;z-index:99999;font-size:11px;font-family:ui-monospace,Consolas,monospace;color:#fff;mix-blend-mode:difference;pointer-events:none;letter-spacing:.5px">v2026.11.21.1415</div>
 <div id="redo" style="position:fixed;left:10px;bottom:30px;z-index:99999;font-size:12px;font-family:ui-monospace,Consolas,monospace;color:#fff;mix-blend-mode:difference;cursor:pointer;display:none;letter-spacing:.5px;pointer-events:auto">重新选照片</div>
 
 <div id="loading">
@@ -1036,6 +1036,7 @@
     var thumbsMap = {};
     var thisYear = new Date().getFullYear();
     var skippedYear = 0;
+    var skipYears = {};
 
     function processOne(f, idx) {
       return readHead(f, 131072).then(function (buf) {
@@ -1080,6 +1081,8 @@
           var mini = thumbsMap[idx]; delete thumbsMap[idx];
           if (!isThisYear) {
             skippedYear++;
+            var sy = a.time ? a.time.getFullYear() : 'unknown';
+            skipYears[sy] = (skipYears[sy] || 0) + 1;
             if (a.url && a.url.indexOf('blob:') === 0) URL.revokeObjectURL(a.url);
           } else {
             out.push(a);
@@ -1093,7 +1096,7 @@
         }
         if (done >= list.length) {
           out.sort(function (x, y) { return x.idx - y.idx; });
-          finish(out, skippedYear);
+          finish(out, skippedYear, skipYears);
         } else {
           worker();
         }
@@ -1117,7 +1120,7 @@
     return null;
   }
 
-  function finish(list, skippedYear) {
+  function finish(list, skippedYear, skipYears) {
     if (!list.length) {
       loading.classList.remove('on');
       showModal('没找到照片', '<p>' + (skippedYear ? '这里没有今年的照片。年度总结只看今年拍的，换一个今年的文件夹试试。' : '一张都没读出来。') + '</p>', '好');
@@ -1125,8 +1128,11 @@
     }
 
     var thisYear = new Date().getFullYear();
-    list.forEach(function (p) { if (!p.time) p.time = new Date(thisYear, 0, 1); });
-    list.sort(function (a, b) { return a.time - b.time; });
+    list.sort(function (a, b) {
+      if (!a.time) return 1;
+      if (!b.time) return -1;
+      return a.time - b.time;
+    });
     S.photos = list;
     S.year = thisYear;
 
@@ -1135,15 +1141,17 @@
     var days = {};
 
     list.forEach(function (p) {
-      if (p.time.getFullYear() !== S.year) return;
+      if (p.time && p.time.getFullYear() !== S.year) return;
       total++;
-      months[p.time.getMonth()]++;
-      hours[p.time.getHours()]++;
+      if (p.time) {
+        months[p.time.getMonth()]++;
+        hours[p.time.getHours()]++;
+        var dk = pad2(p.time.getMonth() + 1) + '-' + pad2(p.time.getDate());
+        (days[dk] = days[dk] || []).push(p);
+      }
       L += p.light; Sa += p.sat;
       p.kind = classify(p);
       for (var k = 0; k < 12; k++) hb[k] += p.hb[k];
-      var dk = pad2(p.time.getMonth() + 1) + '-' + pad2(p.time.getDate());
-      (days[dk] = days[dk] || []).push(p);
     });
 
     if (!total) { total = list.length; }
@@ -1169,10 +1177,11 @@
     /* 给身份分类用的补充统计 */
     var wk = 0, we = 0, halfA = 0, halfB = 0, filesz = 0;
     list.forEach(function (p) {
+      filesz += (p.file && p.file.size) || 0;
+      if (!p.time) return;
       var dow = p.time.getDay();
       if (dow === 0 || dow === 6) we++; else wk++;
       if (p.time.getMonth() < 6) halfA++; else halfB++;
-      filesz += (p.file && p.file.size) || 0;
     });
     S.wk = wk; S.we = we;
     S.weekendPct = total ? we / total : 0;
@@ -1184,6 +1193,7 @@
     // 最长空档
     var gap = 0, prev = null;
     list.forEach(function (p) {
+      if (!p.time) return;
       if (prev) gap = Math.max(gap, Math.round((p.time - prev) / 86400000));
       prev = p.time;
     });
@@ -1192,6 +1202,7 @@
     /* 四季 */
     var seas = [0, 0, 0, 0];
     list.forEach(function (p) {
+      if (!p.time) return;
       var m = p.time.getMonth();
       seas[m < 2 ? 3 : m < 5 ? 0 : m < 8 ? 1 : m < 11 ? 2 : 3]++;
     });
@@ -1235,6 +1246,7 @@
     /* 连拍：两张之间不到 12 秒算一组 */
     var burstGroups = 0, burstShots = 0, run = 0;
     for (var bi2 = 1; bi2 < list.length; bi2++) {
+      if (!list[bi2].time || !list[bi2 - 1].time) continue;
       var dt2 = (list[bi2].time - list[bi2 - 1].time) / 1000;
       if (dt2 <= 12) { run++; } else { if (run >= 2) { burstGroups++; burstShots += run + 1; } run = 0; }
     }
@@ -1289,6 +1301,16 @@
     if (_redo) _redo.style.display = 'block';
     render();
     if (!SEM_DONE) setTimeout(runSemantic, 900);
+    if (skippedYear > 0 && skipYears) {
+      var totalRead = list.length + skippedYear;
+      var parts = Object.keys(skipYears)
+        .sort(function (a, b) { return skipYears[b] - skipYears[a]; })
+        .slice(0, 5)
+        .map(function (y) { return y + ' 年 ' + skipYears[y] + ' 张'; });
+      setTimeout(function () {
+        showModal('筛选说明', '<p>共读到 ' + totalRead + ' 张，今年留了 ' + list.length + ' 张，筛掉往年 ' + skippedYear + ' 张。</p><p>筛掉的年份：' + parts.join('，') + '</p>', '知道了');
+      }, 800);
+    }
   }
 
   /* ---------- 人设 ---------- */
