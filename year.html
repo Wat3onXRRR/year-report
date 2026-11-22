@@ -599,7 +599,7 @@
 
 <main id="deck"></main>
 
-<div id="ver" style="position:fixed;left:10px;bottom:10px;z-index:99999;font-size:11px;font-family:ui-monospace,Consolas,monospace;color:#fff;mix-blend-mode:difference;pointer-events:none;letter-spacing:.5px">v2026.11.22.1100</div>
+<div id="ver" style="position:fixed;left:10px;bottom:10px;z-index:99999;font-size:11px;font-family:ui-monospace,Consolas,monospace;color:#fff;mix-blend-mode:difference;pointer-events:none;letter-spacing:.5px">v2026.11.23.1110</div>
 <div id="redo" style="position:fixed;left:10px;bottom:30px;z-index:99999;font-size:12px;font-family:ui-monospace,Consolas,monospace;color:#fff;mix-blend-mode:difference;cursor:pointer;display:none;letter-spacing:.5px;pointer-events:auto">重新选照片</div>
 
 <div id="loading">
@@ -925,6 +925,20 @@
       });
     }).catch(function () {});
   }
+  /* 批量写：一万张照片如果每张开一次事务，光 IndexedDB 就是几万次开销 */
+  function idbPutMany(items) {
+    if (!items.length) return Promise.resolve();
+    return idbOpen().then(function (db) {
+      return new Promise(function (res) {
+        try {
+          var tx = db.transaction('photos', 'readwrite');
+          var st = tx.objectStore('photos');
+          for (var i = 0; i < items.length; i++) st.put({ key: items[i].key, v: items[i].val });
+          tx.oncomplete = res; tx.onerror = res; tx.onabort = res;
+        } catch (e) { res(); }
+      });
+    }).catch(function () {});
+  }
   function idbGetAll() {
     return idbOpen().then(function (db) {
       return new Promise(function (res) {
@@ -981,6 +995,23 @@
     var skipYears = {};
     var junkCount = 0;
     var startTime = Date.now();
+    var idbQueue = [];
+    var sinceYield = 0;
+
+    function flushIdb() {
+      if (!idbQueue.length) return Promise.resolve();
+      var q = idbQueue; idbQueue = [];
+      return idbPutMany(q);
+    }
+
+    /* 每处理 8 张让出一次主线程，浏览器才有机会重绘进度条和缩略图墙 */
+    function maybeYield() {
+      if (++sinceYield < 8) return Promise.resolve();
+      sinceYield = 0;
+      return new Promise(function (r) {
+        requestAnimationFrame(function () { setTimeout(r, 0); });
+      });
+    }
 
     function processOne(f, idx) {
       return readHead(f, 131072).then(function (buf) {
@@ -1000,15 +1031,20 @@
           a.iw = sz.w || im.naturalWidth || im.width || 0;
           a.ih = sz.h || im.naturalHeight || im.height || 0;
           a.idx = idx;
-          thumbsMap[idx] = thumbDataURL(im, 96);
-          idbPut(fkey(f), {
-            time: a.time ? a.time.getTime() : null,
-            r: a.r, g: a.g, b: a.b, h: a.h,
-            light: a.light, sat: a.sat, edge: a.edge, hb: a.hb, n: a.n,
-            skin: a.skin, center: a.center, white: a.white, sym: a.sym,
-            iw: a.iw, ih: a.ih, size: f.size || 0,
-            thumb: thumbDataURL(im, 128)
+          var thumb = thumbDataURL(im, 128);
+          thumbsMap[idx] = thumb;
+          idbQueue.push({
+            key: fkey(f),
+            val: {
+              time: a.time ? a.time.getTime() : null,
+              r: a.r, g: a.g, b: a.b, h: a.h,
+              light: a.light, sat: a.sat, edge: a.edge, hb: a.hb, n: a.n,
+              skin: a.skin, center: a.center, white: a.white, sym: a.sym,
+              iw: a.iw, ih: a.ih, size: f.size || 0,
+              thumb: thumb
+            }
           });
+          if (idbQueue.length >= 40) flushIdb();
           return a;
         });
       }).catch(function () { return null; });
@@ -1040,10 +1076,12 @@
           }
         }
         if (done >= list.length) {
-          out.sort(function (x, y) { return x.idx - y.idx; });
-          finish(out, skippedYear, skipYears, junkCount);
+          flushIdb().then(function () {
+            out.sort(function (x, y) { return x.idx - y.idx; });
+            finish(out, skippedYear, skipYears, junkCount);
+          });
         } else {
-          worker();
+          maybeYield().then(function () { worker(); });
         }
       });
     }
