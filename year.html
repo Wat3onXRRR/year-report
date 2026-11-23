@@ -599,7 +599,7 @@
 
 <main id="deck"></main>
 
-<div id="ver" style="position:fixed;left:10px;bottom:10px;z-index:99999;font-size:11px;font-family:ui-monospace,Consolas,monospace;color:#fff;mix-blend-mode:difference;pointer-events:none;letter-spacing:.5px">v2026.11.23.1145</div>
+<div id="ver" style="position:fixed;left:10px;bottom:10px;z-index:99999;font-size:11px;font-family:ui-monospace,Consolas,monospace;color:#fff;mix-blend-mode:difference;pointer-events:none;letter-spacing:.5px">v2026.11.23.1215</div>
 <div id="redo" style="position:fixed;left:10px;bottom:30px;z-index:99999;font-size:12px;font-family:ui-monospace,Consolas,monospace;color:#fff;mix-blend-mode:difference;cursor:pointer;display:none;letter-spacing:.5px;pointer-events:auto">重新选照片</div>
 
 <div id="loading">
@@ -733,9 +733,22 @@
   }
 
   /* 判断照片来源：camera=相机拍，junk=截图/下载，uncertain=不确定 */
-  function photoSource(name, make) {
-    if (make && make.length) return 'camera';
+  function photoSource(name, make, relPath) {
     var n = (name || '').toLowerCase();
+    var p = (relPath || '').toLowerCase();
+
+    /* 选中的文件夹路径是最硬的证据：DCIM/Camera 里的一律算相机拍的，
+       哪怕微信转存把 EXIF 剥了、名字变成 mmexport。 */
+    if (/screenshot|screen[\.\-_ ]?shot|screen ?capture|截屏|截图|screencap/i.test(p)) return 'junk';
+    if (/dcim|(^|[\/\\])(camera|相机)([\/\\]|$)/i.test(p)) {
+      if (/screenshot|截屏|截图/i.test(n)) return 'junk';
+      return 'camera';
+    }
+
+    /* 任何品牌的手机会把厂商写进 EXIF 的 Make：Apple / Xiaomi / HUAWEI /
+       samsung / OPPO / vivo / OnePlus / Google…所以只看有没有这一项，不看是哪家。 */
+    if (make && make.length) return 'camera';
+
     if (/screenshot|screen[\.\-_ ]?shot|截屏|截图|snap|screen ?capture/i.test(n)) return 'junk';
     if (/download|下载|wechat|微信图片|mmexport/i.test(n)) return 'junk';
     if (/^(img|pxl|dsc|dcim|pic|photo|image|dji|mvimg)[\-_]?\d*/i.test(n)) return 'camera';
@@ -1016,7 +1029,7 @@
     function processOne(f, idx) {
       return readHead(f, 131072).then(function (buf) {
         var make = buf.byteLength ? exifMake(buf) : null;
-        if (photoSource(f.name, make) === 'junk') return { __junk: true, idx: idx };
+        if (photoSource(f.name, make, f.webkitRelativePath) === 'junk') return { __junk: true, idx: idx };
         var t = buf.byteLength ? exifTime(buf) : null;
         if (!t) t = nameTime(f.name);
         if (t && t.getFullYear() !== thisYear) return { __oldYear: true, idx: idx, year: t.getFullYear() };
