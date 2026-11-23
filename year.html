@@ -599,7 +599,7 @@
 
 <main id="deck"></main>
 
-<div id="ver" style="position:fixed;left:10px;bottom:10px;z-index:99999;font-size:11px;font-family:ui-monospace,Consolas,monospace;color:#fff;mix-blend-mode:difference;pointer-events:none;letter-spacing:.5px">v2026.11.23.1500</div>
+<div id="ver" style="position:fixed;left:10px;bottom:10px;z-index:99999;font-size:11px;font-family:ui-monospace,Consolas,monospace;color:#fff;mix-blend-mode:difference;pointer-events:none;letter-spacing:.5px">v2026.11.23.1545</div>
 <div id="redo" style="position:fixed;left:10px;bottom:30px;z-index:99999;font-size:12px;font-family:ui-monospace,Consolas,monospace;color:#fff;mix-blend-mode:difference;cursor:pointer;display:none;letter-spacing:.5px;pointer-events:auto">重新选照片</div>
 
 <div id="loading">
@@ -752,7 +752,7 @@
        samsung / OPPO / vivo / OnePlus / Google…只看有没有这一项，不看是哪家。 */
     if (make && make.length) return 'camera';
 
-    if (/download|下载/.test(n)) return 'junk';
+    if (/download|下载/.test(n) || /download|下载/.test(p)) return 'junk';
     /* 微信用自己的相机拍的，算你自己拍的 */
     if (/wx[\-_]?camera/.test(n)) return 'camera';
     if (/^(img|pxl|dsc|dcim|pic|photo|image|dji|mvimg)[\-_]?\d*/i.test(n)) return 'camera';
@@ -1165,10 +1165,15 @@
     }
     var _rClose = pickRep(function (p) { return p.center || 0; });
     var _rSym = pickRep(function (p) { return p.sym || 0; });
-    var _rWhite = pickRep(function (p) { return p.white || 0; });
+    var _rWhite = pickRep(function (p) { return (p.white > 0.42 && (p.edge || 0) < 0.09) ? (p.white || 0) : -1; });
     var _rIn = pickRep(function (p) { return 1 - (p.light || 0); });
     var _rSelf = pickRep(function (p) { return p.skin || 0; });
-    var _rNat = pickRep(function (p) { var h = p.h || 0; return (h >= 75 && h <= 165) ? (p.sat || 0) : 0; });
+    var _rNat = pickRep(function (p) {
+      var hs = p.hb.reduce(function (a, b) { return a + b; }, 0);
+      var conc = hs ? Math.max.apply(null, p.hb) / hs : 1;
+      var h = p.h || 0;
+      return (h >= 75 && h <= 165 && conc < 0.55) ? (p.sat || 0) : -1;
+    });
     var _rCity = pickRep(function (p) { return p.edge || 0; });
     S.reps = {
       close: _rClose ? _rClose.url : null,
@@ -1227,7 +1232,10 @@
     list.forEach(function (p) {
       var green = (p.hb[3] + p.hb[4] + p.hb[5] + p.hb[6] + p.hb[7]) || 0;
       var blue = (p.hb[8] + p.hb[9] + p.hb[10]) || 0;
-      if ((green + blue) / Math.max(1, p.hb.reduce(function (a, b) { return a + b; }, 0)) > 0.46) natural++;
+      var hsum = p.hb.reduce(function (a, b) { return a + b; }, 0);
+      var hmax = Math.max.apply(null, p.hb);
+      /* 绿蓝占多数；而且不能是「一色到底」——屏幕壁纸就是一个纯色撑满，树林是杂色 */
+      if ((green + blue) / Math.max(1, hsum) > 0.46 && (hsum ? hmax / hsum : 1) < 0.55) natural++;
     });
     S.naturalPct = total ? natural / total : 0;
 
@@ -1245,7 +1253,8 @@
     var symC = 0, whiteC = 0, indoorC = 0, selfieC = 0, closeC = 0;
     list.forEach(function (p) {
       if (p.sym > 0.72) symC++;
-      if (p.white > 0.42) whiteC++;
+      /* 白得多，还得平。白底表格满屏都是字和格线，边缘密度高，不能算留白 */
+      if (p.white > 0.42 && (p.edge || 0) < 0.09) whiteC++;
       if (p.light < 0.52) indoorC++;
       if (p.skin > 0.28 && p.center > 0.08) selfieC++;
       if (p.center > 0.16) closeC++;
@@ -1315,6 +1324,7 @@
     if (_redo) _redo.style.display = 'block';
     render();
     if (!SEM_DONE) setTimeout(runSemantic, 900);
+    setTimeout(runFacePass, 1200);
     if (skippedYear > 0 || junkCount > 0) {
       var totalRead = list.length + skippedYear + junkCount;
       var lines = [];
@@ -2038,6 +2048,29 @@
     var anchorSec = deck.querySelectorAll('section')[5];
     if (anchorSec && anchorSec.nextSibling) deck.insertBefore(sec, anchorSec.nextSibling);
     else deck.appendChild(sec);
+
+    /* 小动物单独成一屏 */
+    if (res.animal.length >= 2) {
+      var an = el('section', 'anim');
+      an.appendChild(el('div', 'stamp num', y));
+      an.appendChild(el('p', 'kicker', '小动物'));
+      an.appendChild(el('div', 'big num', res.animal.length + '<small> 张</small>'));
+      an.appendChild(el('p', 'say2', '猫、狗、鸟、路过的鸽子，都算在这一格里。'));
+      var ag = el('div', 'semgrid');
+      res.animal.slice(0, 3).forEach(function (ap) {
+        var box2 = el('div', 'sembox');
+        var im2 = el('div', 'semimg');
+        im2.appendChild(imgEl(ap));
+        box2.appendChild(im2);
+        ag.appendChild(box2);
+      });
+      an.appendChild(ag);
+      an.appendChild(el('p', 'foot', '这一批 ' + total + ' 张里认出 ' + res.animal.length + ' 张。'));
+      tint(an, 34, 24, 22);
+      if (sec.nextSibling) deck.insertBefore(an, sec.nextSibling);
+      else deck.appendChild(an);
+      S.animalN = res.animal.length;
+    }
     buildIdent();
     updateProgress();
   }
@@ -2676,6 +2709,7 @@
     sWhite.appendChild(el('p','kicker','你留了多少空白'));
     sWhite.appendChild(el('div','big num', Math.round(S.whitePct*100) + '<small>%</small>'));
     sWhite.appendChild(el('p','say', Math.round(S.whitePct*100) + '% 的照片有大片空白，不塞满。'));
+    sWhite.appendChild(el('p','foot','只算「白得多而且平」的，白底表格满屏字，不算。'));
     sWhite.appendChild(el('p','foot','这里说的空白，是画面里又亮又淡、没什么东西的区域。'));
     var _rp = repImg(S.reps.white); if (_rp) sWhite.appendChild(_rp);
     tint(sWhite, 200, 14, 30);
@@ -2755,8 +2789,10 @@
     deck.appendChild(s6);
 
     /* 6.5 最亮与最暗 */
-    var bright = S.photos.slice().sort(function(a,b){return (b.light||0)-(a.light||0);})[0];
-    var dark   = S.photos.slice().sort(function(a,b){return (a.light||0)-(b.light||0);})[0];
+    var _lively = S.photos.filter(function(p){ return (p.edge||0) >= 0.05; });
+    var _pool = _lively.length >= 2 ? _lively : S.photos;
+    var bright = _pool.slice().sort(function(a,b){return (b.light||0)-(a.light||0);})[0];
+    var dark   = _pool.slice().sort(function(a,b){return (a.light||0)-(b.light||0);})[0];
     if (bright && dark && bright !== dark) {
       var s65 = el('section');
       s65.appendChild(el('div','stamp num', y));
@@ -2776,7 +2812,7 @@
       s65.appendChild(lr);
       s65.appendChild(el('p','say','一年里最亮的那张，和最暗的那张，隔了 ' +
         ((bright.time && dark.time) ? Math.round(Math.abs(bright.time - dark.time)/86400000) + ' 天' : '一段日子') + '。'));
-      s65.appendChild(el('p','foot','亮度是逐张采样算的，不看你当时觉得亮不亮。'));
+      s65.appendChild(el('p','foot','亮度是逐张采样算的，不看你当时觉得亮不亮。空白纸和文档这种一片平的，不参与评选。'));
       tint(s65, bgH, 20, 22);
       bgArt(s65, 'cloud');
       deck.appendChild(s65);
@@ -3214,6 +3250,7 @@
     im.src = url;
     im.alt = '';
     im.loading = 'lazy';
+    im.className = 'rep';
     im.style.cssText = 'display:block;width:100%;max-width:230px;height:auto;border-radius:3px;margin:16px 0 0;box-shadow:0 8px 22px rgba(0,0,0,.28)';
     return im;
   }
@@ -3305,6 +3342,66 @@
         .then(function (dets) { return dets.length; })
         .catch(function () { return -1; });
     } catch (e) { return Promise.resolve(-1); }
+  }
+
+  /* 人脸单独跑一趟，不看 MobileNet 的脸色。
+     语义模型是 13MB，加载失败或者慢，人脸检测就整个不执行——之前就是这个坑。 */
+  var FACE_DONE = false;
+  function runFacePass() {
+    if (FACE_DONE) return;
+    FACE_DONE = true;
+    var pool = S.photos.slice();
+    if (!pool.length || !window.faceapi) return;
+    var want = Math.min(300, pool.length);
+    var step = pool.length / want, bag = [];
+    for (var i = 0; i < want; i++) bag.push(pool[Math.floor(i * step)]);
+
+    waitFace().then(function (ok) {
+      if (!ok) return;
+      var k = 0, tested = 0, hit = 0, withFace = [];
+      function next() {
+        if (k >= bag.length) { applyFace(bag, withFace); return; }
+        var ph = bag[k++];
+        if (typeof ph.faceN === 'number' && ph.faceN >= 0) {
+          tested++; if (ph.faceN > 0) { hit++; withFace.push(ph); }
+          setTimeout(next, 0); return;
+        }
+        loadOne(ph.url).then(function (im) {
+          if (!im) { setTimeout(next, 0); return; }
+          detectFaceCount(im).then(function (n) {
+            if (typeof n === 'number' && n >= 0) {
+              ph.faceN = n; tested++;
+              if (n > 0) { hit++; withFace.push(ph); }
+            }
+            setTimeout(next, 0);
+          });
+        });
+      }
+      next();
+    });
+  }
+
+  function applyFace(bag, withFace) {
+    if (!withFace || !withFace.length) return;
+    var pct = Math.round((withFace.length / Math.max(1, bag.length)) * 100) / 100;
+    S.facePct = pct;
+    S.faceTested = bag.length;
+    S.faceShots = withFace;
+    if (pct > (S.peoplePct || 0)) {
+      S.peoplePct = pct;
+      /* 人那一屏的代表照片换成真正测出脸的那张，别再拿肤色最像的（猫）顶上 */
+      var best = withFace.slice().sort(function (a, b) { return (b.faceN || 0) - (a.faceN || 0); })[0];
+      if (best) S.reps.people = best.url;
+      refreshPeopleScreen();
+      if (typeof refreshPeopleRep === 'function') refreshPeopleRep();
+    }
+  }
+
+  function refreshPeopleRep() {
+    var sec = deck.querySelector('section.ppl');
+    if (!sec || !S.reps || !S.reps.people) return;
+    var img = sec.querySelector('.rep');
+    if (img) img.src = S.reps.people;
   }
 
   function sceneOf(name) {
@@ -3606,6 +3703,7 @@ window.__YEAR = {
     S: S, handleFiles: handleFiles,
     get modelReady() { return MNET_READY; },
     probe: function (im) { return MNET && MNET_READY ? inferOne(im) : null; },
+    runFacePass: runFacePass,
     load: loadMNet,
     render: function () { return render(); }
   };
