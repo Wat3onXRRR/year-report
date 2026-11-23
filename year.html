@@ -599,7 +599,7 @@
 
 <main id="deck"></main>
 
-<div id="ver" style="position:fixed;left:10px;bottom:10px;z-index:99999;font-size:11px;font-family:ui-monospace,Consolas,monospace;color:#fff;mix-blend-mode:difference;pointer-events:none;letter-spacing:.5px">v2026.11.23.1450</div>
+<div id="ver" style="position:fixed;left:10px;bottom:10px;z-index:99999;font-size:11px;font-family:ui-monospace,Consolas,monospace;color:#fff;mix-blend-mode:difference;pointer-events:none;letter-spacing:.5px">v2026.11.23.1500</div>
 <div id="redo" style="position:fixed;left:10px;bottom:30px;z-index:99999;font-size:12px;font-family:ui-monospace,Consolas,monospace;color:#fff;mix-blend-mode:difference;cursor:pointer;display:none;letter-spacing:.5px;pointer-events:auto">重新选照片</div>
 
 <div id="loading">
@@ -759,17 +759,6 @@
     return 'uncertain';
   }
 
-  /* 文件夹里也可能混着截图（有些手机截图就存进 DCIM/Camera）。
-     截图没有 EXIF，画面是几块纯色 + 文字，调色板特别小，而且比例是屏幕比例。 */
-  function looksLikeShot(a, hasMake) {
-    if (hasMake) return false;
-    if (!a || !a.pal || a.pal > 30) return false;
-    var ratio = (a.iw && a.ih) ? a.ih / a.iw : 0;
-    var screenShaped = (ratio >= 1.68 && ratio <= 2.45) || (ratio >= 0.41 && ratio <= 0.60);
-    if (!screenShaped) return false;
-    return (a.white || 0) > 0.20 || (a.light || 0) < 0.18;
-  }
-
   function readHead(file, n) {
     return new Promise(function (res) {
       var r = new FileReader();
@@ -867,20 +856,15 @@
     skCtx.drawImage(im, 0, 0, 64, 64);
     var sd = skCtx.getImageData(0, 0, 64, 64).data;
     var skin = 0, skinN = 0;
-    var bins = new Uint16Array(512);
     for (var j = 0; j < sd.length; j += 4) {
       var R = sd[j], G = sd[j + 1], B = sd[j + 2];
       skinN++;
-      bins[((R >> 5) << 6) | ((G >> 5) << 3) | (B >> 5)]++;
       var cb = 128 - 0.168736 * R - 0.331264 * G + 0.5 * B;
       var cr = 128 + 0.5 * R - 0.418688 * G - 0.081312 * B;
       // 放宽 Cb/Cr 范围（覆盖深肤色和背光脸），再加「红>绿>蓝」暖色调约束排除棕色木头/灰色
       if (cb >= 70 && cb <= 135 && cr >= 125 && cr <= 180 && R > G && G > B && (R - B) > 10) skin++;
     }
     var skinRatio = skin / (skinN || 1);
-    /* 调色板大小：截图是几十个纯色块，照片是连续渐变、色块特别多 */
-    var pal = 0, palMin = Math.max(4, Math.round(skinN * 0.002));
-    for (var bi = 0; bi < 512; bi++) if (bins[bi] >= palMin) pal++;
     // 中央三分之一占多少「信息量」（亮度方差），主体居中的片子这里高
     var cw = 6, cx0 = 6, cy0 = 6, cl = [], k2;
     for (var yy = cy0; yy < cy0 + cw; yy++) {
@@ -908,7 +892,7 @@
       h: hue, light: L / n, sat: Sa / n,
       edge: edge / n, hb: hb, n: n,
       skin: skinRatio, center: Math.sqrt(cv),
-      white: white / n, sym: 1 - symDiff / symN, pal: pal
+      white: white / n, sym: 1 - symDiff / symN
     };
   }
 
@@ -1027,7 +1011,6 @@
     var skippedYear = 0;
     var skipYears = {};
     var junkCount = 0;
-    var shotCount = 0;
     var startTime = Date.now();
     var idbQueue = [];
     var sinceYield = 0;
@@ -1065,8 +1048,6 @@
           a.iw = sz.w || im.naturalWidth || im.width || 0;
           a.ih = sz.h || im.naturalHeight || im.height || 0;
           a.idx = idx;
-          /* 相机文件夹里混进来的截图，光看文件名认不出，得看画面 */
-          if (looksLikeShot(a, !!(make && make.length))) return { __junk: true, shot: true, idx: idx };
           var thumb = thumbDataURL(im, 128);
           thumbsMap[idx] = thumb;
           idbQueue.push({
@@ -1075,7 +1056,7 @@
               time: a.time ? a.time.getTime() : null,
               r: a.r, g: a.g, b: a.b, h: a.h,
               light: a.light, sat: a.sat, edge: a.edge, hb: a.hb, n: a.n,
-              skin: a.skin, center: a.center, white: a.white, sym: a.sym, pal: a.pal,
+              skin: a.skin, center: a.center, white: a.white, sym: a.sym,
               iw: a.iw, ih: a.ih, size: f.size || 0,
               thumb: thumb
             }
@@ -1098,7 +1079,6 @@
         loadTxt.textContent = '正在看你的照片 ' + done + ' / ' + list.length + (eta > 0 ? '，约剩 ' + eta + ' 秒' : '');
         if (a && a.__junk) {
           junkCount++;
-          if (a.shot) shotCount++;
         } else if (a && a.__oldYear) {
           skippedYear++;
           skipYears[a.year] = (skipYears[a.year] || 0) + 1;
@@ -1115,7 +1095,7 @@
         if (done >= list.length) {
           flushIdb().then(function () {
             out.sort(function (x, y) { return x.idx - y.idx; });
-            finish(out, skippedYear, skipYears, junkCount, shotCount);
+            finish(out, skippedYear, skipYears, junkCount);
           });
         } else {
           maybeYield().then(function () { worker(); });
@@ -1127,7 +1107,7 @@
     for (var k = 0; k < CONC; k++) worker();
   }
 
-  function finish(list, skippedYear, skipYears, junkCount, shotCount) {
+  function finish(list, skippedYear, skipYears, junkCount) {
     if (!list.length) {
       loading.classList.remove('on');
       showModal('没找到照片', '<p>' + (skippedYear ? '这里没有今年的照片。年度总结只看今年拍的，换一个今年的文件夹试试。' : '一张都没读出来。') + '</p>', '好');
@@ -1338,13 +1318,7 @@
     if (skippedYear > 0 || junkCount > 0) {
       var totalRead = list.length + skippedYear + junkCount;
       var lines = [];
-      if (junkCount > 0) {
-        var nm = junkCount - (shotCount || 0);
-        var bits = [];
-        if (nm > 0) bits.push('按名字认出的截图和下载图 ' + nm + ' 张');
-        if (shotCount > 0) bits.push('看画面才认出来的截图 ' + shotCount + ' 张');
-        lines.push('<p>去掉了 ' + junkCount + ' 张：' + bits.join('，') + '。</p>');
-      }
+      if (junkCount > 0) lines.push('<p>去掉截图和下载的图 ' + junkCount + ' 张。</p>');
       if (skippedYear > 0) {
         var parts = Object.keys(skipYears)
           .sort(function (a, b) { return skipYears[b] - skipYears[a]; })
