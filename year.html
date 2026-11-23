@@ -599,7 +599,7 @@
 
 <main id="deck"></main>
 
-<div id="ver" style="position:fixed;left:10px;bottom:10px;z-index:99999;font-size:11px;font-family:ui-monospace,Consolas,monospace;color:#fff;mix-blend-mode:difference;pointer-events:none;letter-spacing:.5px">v2026.11.23.1110</div>
+<div id="ver" style="position:fixed;left:10px;bottom:10px;z-index:99999;font-size:11px;font-family:ui-monospace,Consolas,monospace;color:#fff;mix-blend-mode:difference;pointer-events:none;letter-spacing:.5px">v2026.11.23.1145</div>
 <div id="redo" style="position:fixed;left:10px;bottom:30px;z-index:99999;font-size:12px;font-family:ui-monospace,Consolas,monospace;color:#fff;mix-blend-mode:difference;cursor:pointer;display:none;letter-spacing:.5px;pointer-events:auto">重新选照片</div>
 
 <div id="loading">
@@ -1927,7 +1927,7 @@
     loadLabels(function () {
       var pool = S.photos.slice();
       if (!pool.length) return;
-      var want = Math.min(30, pool.length);
+      var want = Math.min(80, pool.length);
       var step = pool.length / want, bag = [];
       for (var i = 0; i < want; i++) bag.push(pool[Math.floor(i * step)]);
 
@@ -1935,7 +1935,7 @@
       var k = 0;
 
       function ahead() {
-        if (k >= bag.length) { buildSemanticScreen(res, bag.length); return; }
+        if (k >= bag.length) { buildSemanticScreen(res, bag.length, bag); return; }
         var ph = bag[k++];
         loadOne(ph.url).then(function (im) {
           var key = null;
@@ -1945,31 +1945,46 @@
               key = sceneOf(LABELS[o.idx][1]);
             }
           }
-          if (tagIsPerson(ph) && (!key || key === 'object')) {
-            if (FACE_READY && im) {
-              detectFaceCount(im).then(function (n) {
-                if (n > 0) key = 'person';
-                if (!key) key = 'other';
-                res[key].push(ph);
-                setTimeout(ahead, 0);
-              });
-              return;
-            }
-            key = 'person';
-          }
-          if (!key) key = 'other';
-          res[key].push(ph);
-          setTimeout(ahead, 0);
+          /* 人脸不再只对「肤色像人」的照片跑。肤色判断恰恰会漏掉拍人的照片，
+             所以凡是模型没把握（object/other）的也一并跑一次。 */
+          var needFace = !!im && (!key || key === 'object' || key === 'other' || tagIsPerson(ph));
+          var faceJob = needFace
+            ? waitFace().then(function () { return detectFaceCount(im); })
+            : Promise.resolve(-1);
+          faceJob.then(function (n) {
+            if (typeof n === 'number') ph.faceN = n;
+            if (n > 0) key = 'person';
+            if (!key) key = 'other';
+            res[key].push(ph);
+            setTimeout(ahead, 0);
+          });
         });
       }
       ahead();
     });
   }
 
-  function buildSemanticScreen(res, total) {
+  function buildSemanticScreen(res, total, bag) {
     var order = ['landscape', 'person', 'animal', 'food', 'object', 'other'];
     var CN = { landscape: '风景', person: '有人在画面里', animal: '动物', food: '吃的东西', object: '物件', other: '说不上来' };
     var have = order.filter(function (k) { return res[k].length; });
+
+    /* 真跑了人脸检测的那批，按「有脸的照片占多少」重算一次有人的比例。
+       肤色判断漏掉的（穿得厚、背光、脸小、侧身）靠这一步补回来。 */
+    if (bag && bag.length) {
+      var tested = 0, hit = 0;
+      bag.forEach(function (p) {
+        if (typeof p.faceN === 'number' && p.faceN >= 0) { tested++; if (p.faceN > 0) hit++; }
+      });
+      if (tested >= 8) {
+        S.facePct = hit / tested;
+        S.faceTested = tested;
+        if (S.facePct > (S.peoplePct || 0)) {
+          S.peoplePct = S.facePct;
+          refreshPeopleScreen();
+        }
+      }
+    }
     S.sem = {
       animal: res.animal.length / total,
       food: res.food.length / total,
@@ -2008,6 +2023,19 @@
     else deck.appendChild(sec);
     buildIdent();
     updateProgress();
+  }
+
+  /* 人脸检测把「有人的比例」抬高之后，把那一屏的数字和话改掉 */
+  function refreshPeopleScreen() {
+    var sec = deck.querySelector('section.ppl');
+    if (!sec) return;
+    var pc = Math.round((S.peoplePct || 0) * 100);
+    var big = sec.querySelector('.big');
+    if (big) big.innerHTML = pc + '<small>%</small>';
+    var say = sec.querySelector('.say2');
+    if (say) say.textContent = pc >= 30 ? '这一年，照片里常常有别人' : pc >= 12 ? '偶尔有人进来' : '几乎只有你自己';
+    var foot = sec.querySelector('.foot');
+    if (foot) foot.innerHTML = '按肤色占比、画面中央的动静，再加上真跑一遍人脸检测来核对。<br>' + Math.round(S.total * S.peoplePct) + ' 张里有人。';
   }
 
   function buildIdent() {
@@ -2811,12 +2839,12 @@
     /* 6.9 有人的照片 */
     (function () {
       var pc = Math.round(S.peoplePct * 100);
-      var sec = el('section');
+      var sec = el('section', 'ppl');
       tint(sec, bgH, 22, 20);
       head(sec, '照片里有没有人');
       sec.appendChild(el('div', 'big num', pc + '<small>%</small>'));
       sec.appendChild(el('p', 'say2', pc >= 30 ? '这一年，照片里常常有别人' : pc >= 12 ? '偶尔有人进来' : '几乎只有你自己'));
-      sec.appendChild(el('p', 'foot', '按肤色像素占比和画面中央的动静一起判断。<br>' + Math.round(S.total * S.peoplePct) + ' 张里有人。'));
+      sec.appendChild(el('p', 'foot', '按肤色占比、画面中央的动静，再加上真跑一遍人脸检测来核对。<br>' + Math.round(S.total * S.peoplePct) + ' 张里有人。'));
     var _rp = repImg(S.reps.people); if (_rp) sec.appendChild(_rp);
       deck.appendChild(sec);
     })();
@@ -3243,10 +3271,20 @@
     } catch (e) { FACE_READY = false; }
   }
 
+  /* 模型还没加载完就等一等，别当成「没有脸」 */
+  function waitFace(tries) {
+    tries = tries || 0;
+    if (FACE_READY) return Promise.resolve(true);
+    if (tries > 25) return Promise.resolve(false);
+    return new Promise(function (r) {
+      setTimeout(function () { waitFace(tries + 1).then(r); }, 200);
+    });
+  }
+
   function detectFaceCount(im) {
     if (!FACE_READY) return Promise.resolve(-1);
     try {
-      return faceapi.detectAllFaces(im, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
+      return faceapi.detectAllFaces(im, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.35 }))
         .then(function (dets) { return dets.length; })
         .catch(function () { return -1; });
     } catch (e) { return Promise.resolve(-1); }
@@ -3267,7 +3305,8 @@
   }
 
   function tagIsPerson(a) {
-    // 肤色占比 + 主体居中
+    // 肤色占比 + 主体居中；真跑出过脸的，一律算有人
+    if (a.faceN > 0) return true;
     return a.skin > 0.16 && a.center > 0.42;
   }
 
